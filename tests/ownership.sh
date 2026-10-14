@@ -38,7 +38,7 @@ run_agent() {
     else cat "$TMP/$name.jsonl"; return 1; fi
   fi
   if grep -q '"type":"error"' "$TMP/$name.jsonl"; then cat "$TMP/$name.jsonl"; return 1; fi
-  jq -rs '[.[] | select(.type == "text") | .part.text] | last // error("No assistant text")' "$TMP/$name.jsonl" > "$TMP/$name.txt"
+  jq -s '[.[] | select(.type == "text") | .part.text] | last // error("No assistant text")' "$TMP/$name.jsonl" > "$TMP/$name.txt"
 }
 cd "$TMP/policy"
 for role in atom-developer atom-qa; do

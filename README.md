@@ -126,11 +126,11 @@ sh tests/installer.sh
 
 Filesystem suite는 가짜 OpenCode path probe와 격리된 임시 config만 사용합니다. 실제 사용자 config에는 접근하지 않습니다. Clean/repeated install, update, uninstall, dry-run, 충돌·수정 보존, 누락 복구, source/checksum 오류, 경로 override, symlink, rollback, lock, 다른 agent·skill·설정 보존을 검증합니다.
 
-실제 OpenCode 통합 실험은 비용·시간이 들 수 있으므로 별도 opt-in입니다. 아래 `MODEL`에는 사용자가 사용할 수 있는 모델 ID를 지정합니다. 이 지정은 테스트 실행에만 적용되며 배포 agent나 사용자 설정에는 저장하지 않습니다. 생략하면 OpenCode 기본 선택을 사용하고, 모델 오류 시 테스트가 실패할 뿐 자동 전환하지 않습니다.
+실제 OpenCode 통합 실험은 비용·시간이 들 수 있으므로 별도 opt-in입니다. 아래 `MODEL`에는 사용자가 사용할 수 있는 모델 ID를 지정합니다. 이 지정은 테스트 실행에만 적용되며 배포 agent나 사용자 설정에는 저장하지 않습니다. 새 CLI 세션이 현재 UI 대화의 모델을 상속한다고 가정하지 말고 재현 가능한 실험에는 모델을 명시하세요. 생략하면 OpenCode 기본 선택을 사용하고, 모델 오류 시 테스트가 실패할 뿐 자동 전환하지 않습니다.
 
 ```sh
 ATOM_TEST_MODEL='PROVIDER/MODEL' sh tests/opencode.sh
-sh tests/ownership.sh
+ATOM_TEST_MODEL='PROVIDER/MODEL' sh tests/ownership.sh
 # 별도 선택적 source-prompt 정책 실험 (각 CLI 기본 모델 사용):
 ATOM_TEST_HOST=codex sh tests/ownership.sh
 ATOM_TEST_HOST=claude sh tests/ownership.sh
@@ -155,10 +155,11 @@ Insight 평가에는 기존 수정 사례의 간결한 최종 설명, 같은 기
 ### 현재 배포본 재검증 (2026-10-14)
 
 - Filesystem suite **31개 통과**. 소유권 변경은 Agent 본문과 README, opt-in 테스트에 한정하며 설치기·기존 Skill은 변경하지 않습니다.
-- `ownership.sh`의 실제 OpenCode 2.0.19 호출은 기본 모델의 `provider.invalid-request` (`The requested model is not supported`, HTTP 400)로 중단됐습니다. 모델·provider 설정은 변경하지 않았습니다. 따라서 새 native QA→Developer 전달·Reviewer·로컬 Commit 시나리오는 **미실행**이며 통과를 주장하지 않습니다.
+- 최초 모델 미지정 호출은 `github-copilot/gemini-4-argon`을 선택해 `provider.invalid-request` (`The requested model is not supported`, HTTP 400)로 실패했습니다. 새 CLI 테스트 세션의 기본 선택은 현재 UI 대화의 선택 모델과 달랐습니다. 모델 목록 등록은 해당 계정에서의 실제 호출 성공을 보장하지 않습니다.
+- 현재 대화와 같은 `openai/gpt-6.1-sol`을 테스트 인자로만 명시한 `ATOM_TEST_MODEL=openai/gpt-6.1-sol sh tests/opencode.sh`는 통과했습니다. 다섯 agent 호출, primary 모델 유지, native Reviewer **2회**의 `CHANGES_REQUIRED → 수정·테스트 → PASS`, child 모델 상속과 설치·제거를 확인했습니다. Insight 출력은 소스·실행 근거와 대조해 작은 설명·거짓 설명 지적·할인 경계/개념 예시 구분도 확인했습니다. 사용자 전역 모델·provider·권한 설정은 변경하지 않았습니다.
+- `ATOM_TEST_MODEL=openai/gpt-6.1-sol sh tests/ownership.sh`도 통과했습니다. 실제 응답으로 발견된 OpenCode JSON 출력의 문자열 인코딩 불일치(`jq -rs` → `jq -s`)를 수정했습니다. 별도 QA 세션이 parent/child tool 기록·최종 diff·commit을 대조해 두 역할의 실제 수정 주체·수정 후 테스트·독립 검토 후 범위 내 로컬 Commit과 소유권 유지를 확인했습니다. QA 사례에서는 Developer helper의 Reviewer 호출이 depth limit으로 실패했으며, 실패를 포함한 **2/3회** 예산 안에서 QA parent가 Reviewer `PASS`를 확보했습니다. Developer 사례는 **1/3회**였습니다. Fixture는 remote를 설정하지 않았고 실제 Push·PR·Merge·Jira 변경은 하지 않았습니다.
 - Codex 0.160.1 역할 본문 정책 실험: 기존 QA는 독립 검토 필요·승인된 작은 직접 수정 항목에서 기대와 다르게 응답해 실패했고, 변경 후 Developer/QA는 각 13개 정책 판단을 통과했습니다. 이는 실제 CLI 출력에 대한 정책 회귀 근거이며 native 위임이나 원격 publish의 실행 증거는 아닙니다.
 - Claude Code 2.1.259도 변경 후 Developer/QA 각 13개 정책 판단을 통과했습니다. OpenCode와 마찬가지로 모델·provider·권한을 바꾸지 않았으며 Codex/Claude 실험은 독립적인 플랫폼 정책 실험이지 차단된 OpenCode 작업의 우회가 아닙니다.
-- 기존 Insight 평가 사례도 새 통합 실행 성공을 뜻하지 않습니다. 사용자가 OpenCode에서 사용 가능한 모델을 선택한 환경에서 opt-in suite 재검증이 필요합니다.
 
 미검증: 다른 OS/OpenCode 버전·model/provider, 실제 원격 commit/push/PR/배포, 3회 한도 소진·context compaction·30–60분 장기 작업, 모든 외부 skill workflow와의 행동 호환성. Superpowers/기존 skills 설치 파일은 변경하지 않으며 개별 지침 충돌은 host/user 정책에 따릅니다.
 
