@@ -1,5 +1,5 @@
 #!/bin/sh
-# ATOM's global OpenCode installer. No model management or project configuration.
+# ATOM's global CLI installer. No model management or project configuration.
 set -eu
 umask 077
 VERSION=0.1.0
@@ -12,7 +12,7 @@ DRY=0
 usage() {
   cat <<'EOF'
 ATOM — Install once. Work anywhere. Adapt to every project.
-Usage: atom {install|update|status|uninstall} [--ai opencode] [--dry-run]
+Usage: atom {install|update|status|uninstall} [--ai opencode|claude] [--dry-run]
 Global installation is the default and only scope. No --global or project init.
 Update uses this local distribution; it does not download releases.
 EOF
@@ -27,10 +27,22 @@ while [ "$#" -gt 0 ]; do
     *) die "Unknown option: $1" ;;
   esac
 done
-[ "$AI" = opencode ] || die 'Only --ai opencode is supported in v0.1'
-command -v opencode >/dev/null 2>&1 || die 'OpenCode is required (opencode must be on PATH)'
-CONFIG=$(opencode debug paths config) || die 'OpenCode configuration path discovery failed'
-case "$CONFIG" in /*) ;; *) die 'OpenCode must return an absolute configuration path' ;; esac
+case "$AI" in
+  opencode)
+    command -v opencode >/dev/null 2>&1 || die 'OpenCode is required (opencode must be on PATH)'
+    CONFIG=$(opencode debug paths config) || die 'OpenCode configuration path discovery failed'
+    SOURCE=$ROOT/agents
+    FORMAT=ATOM1
+    HOST=OpenCode ;;
+  claude)
+    command -v claude >/dev/null 2>&1 || die 'Claude Code is required (claude must be on PATH)'
+    CONFIG=${CLAUDE_CONFIG_DIR:-${HOME:?HOME is required}/.claude}
+    SOURCE=$ROOT/agents/claude
+    FORMAT=ATOM1-CLAUDE
+    HOST='Claude Code' ;;
+  *) die 'Supported AI CLIs: opencode, claude' ;;
+esac
+case "$CONFIG" in /*) ;; *) die "$HOST requires an absolute configuration path" ;; esac
 NL='
 '
 case "$CONFIG" in *"$NL"*) die 'Multiline configuration path is not supported' ;; /) die 'Refusing filesystem root as configuration directory' ;; esac
@@ -70,8 +82,8 @@ hash() {
 
 # Never source the manifest. Accept only this format and the five fixed basenames.
 if [ -f "$MANIFEST" ]; then
-  awk '
-    NR==1 { if (NF!=2 || $1!="ATOM1" || $2 !~ /^[a-zA-Z0-9.-]+$/) exit 1; next }
+  awk -v format="$FORMAT" '
+    NR==1 { if (NF!=2 || $1!=format || $2 !~ /^[a-zA-Z0-9.-]+$/) exit 1; next }
     { if (NF!=2 || $1 !~ /^atom-(planner|designer|developer|reviewer|qa)\.md$/ || seen[$1]++ || length($2)!=64 || $2 ~ /[^0-9a-f]/) exit 1 }
     END { if (NR<1) exit 1 }
   ' "$MANIFEST" || die 'Invalid manifest: preserving it because ownership cannot be established'
@@ -109,9 +121,9 @@ if [ "$COMMAND" = status ]; then
 fi
 
 if [ "$COMMAND" != uninstall ]; then
-  [ ! -L "$ROOT/agents" ] || die 'Unsafe symlink source directory'
+  [ ! -L "$ROOT/agents" ] && [ ! -L "$SOURCE" ] || die 'Unsafe symlink source directory'
   for name in $NAMES; do
-    source=$ROOT/agents/$name
+    source=$SOURCE/$name
     [ -f "$source" ] && [ ! -L "$source" ] || die "Missing or unsafe source file: $source"
   done
 fi
@@ -133,7 +145,7 @@ if [ "$DRY" -eq 1 ]; then
     case "$(state "$name")" in
       owned)
         if [ "$COMMAND" = uninstall ]; then printf 'Would remove %s\n' "$name"
-        elif cmp -s "$ROOT/agents/$name" "$DEST/$name"; then printf 'Unchanged %s\n' "$name"
+        elif cmp -s "$SOURCE/$name" "$DEST/$name"; then printf 'Unchanged %s\n' "$name"
         else printf 'Would update %s\n' "$name"; fi ;;
       missing) [ "$COMMAND" = uninstall ] || printf 'Would install %s\n' "$name" ;;
     esac
@@ -197,20 +209,20 @@ mkdir -p "$DEST"
 if [ -f "$MANIFEST" ]; then cp -p "$MANIFEST" "$STAGE/old-manifest"; HAD_MANIFEST=1; fi
 
 # Prepare complete new contents and backups before the first mutation.
-printf 'ATOM1 %s\n' "$VERSION" > "$STAGE/manifest"
+printf '%s %s\n' "$FORMAT" "$VERSION" > "$STAGE/manifest"
 for name in $NAMES; do
   current=$(state "$name")
   case "$current" in
     owned)
       cp -p "$DEST/$name" "$STAGE/old-$name"
       if [ "$COMMAND" != uninstall ]; then
-        cp "$ROOT/agents/$name" "$STAGE/new-$name"
+        cp "$SOURCE/$name" "$STAGE/new-$name"
         new_hash=$(hash "$STAGE/new-$name") || die "Cannot checksum source: $name"
         printf '%s %s\n' "$name" "$new_hash" >> "$STAGE/manifest"
       fi ;;
     missing)
       if [ "$COMMAND" != uninstall ]; then
-        cp "$ROOT/agents/$name" "$STAGE/new-$name"
+        cp "$SOURCE/$name" "$STAGE/new-$name"
         new_hash=$(hash "$STAGE/new-$name") || die "Cannot checksum source: $name"
         printf '%s %s\n' "$name" "$new_hash" >> "$STAGE/manifest"
       fi ;;
@@ -244,5 +256,5 @@ else
   mv "$STAGE/manifest" "$MANIFEST"
 fi
 DONE=1
-printf 'Finished. Skipped conflicts: %s. Existing OpenCode settings were not changed.\n' "$conflicts"
+printf 'Finished. Skipped conflicts: %s. Existing %s settings were not changed.\n' "$conflicts" "$HOST"
 [ "$conflicts" -eq 0 ]
