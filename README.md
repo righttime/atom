@@ -8,7 +8,7 @@ ATOM은 기존 AI coding CLI에서 사용하는 가벼운 Markdown agent 모음�
 
 ## 지원
 
-- OpenCode **2.0.19** 검증 대상. 다른 버전·Claude Code·Codex 호환성은 아직 주장하지 않습니다.
+- OpenCode **2.0.19** 설치·native agent 검증 대상. Codex·Claude Code에는 설치 adapter를 추가하지 않습니다. 역할 본문을 제공한 정책 실험과 native 설치·위임 검증은 구분합니다.
 - POSIX shell 기반 설치기. macOS에서 검증; Windows native shell은 지원하지 않습니다.
 - `opencode`와 기본 shell 도구, `sha256sum` 또는 `shasum`이 필요합니다. Python/Node/npm 의존성은 없습니다.
 - **Model-agnostic:** 모든 agent는 `model`을 생략합니다. 모델·provider·variant 선택은 OpenCode와 사용자만 관리하며, child agent는 OpenCode의 기본 상속을 따릅니다. ATOM은 모델을 선택·변경하거나 오류 시 자동 전환하지 않습니다.
@@ -42,13 +42,15 @@ atom install --ai opencode
 | --- | --- | --- |
 | `atom-planner` | 자연어 의도에 맞춘 Explore / Design / Plan / Deep Dive | `primary` |
 | `atom-designer` | 신규 UI/UX 설계, 기존 흐름·접근성·일관성 검토 | `primary` |
-| `atom-developer` | 승인된 구현, 위험도에 맞는 검증, 독립 검토 반복, Insight | `primary` |
+| `atom-developer` | 요청된 구현부터 PR까지 책임, 검증·독립 검토·수정·Insight | `all` |
 | `atom-reviewer` | 요약을 믿지 않고 실제 staged/unstaged diff·새 파일·요구사항 검토 | `all` |
-| `atom-qa` | 요청된 최종 검증과 명시적으로 요청된 PR 작업 | `primary` |
+| `atom-qa` | 요청된 최종 검증부터 PR까지 책임, 범위 내 수정 전달·재검증 | `primary` |
 
 ```sh
 opencode run --agent atom-planner "이 아이디어의 가능성만 간단히 검토해 줘"
 opencode run --agent atom-developer "승인된 계획을 구현하고 검토해 줘"
+opencode run --agent atom-developer "이 수정을 구현하고 테스트·검토 후 PR까지 생성해 줘"
+opencode run --agent atom-qa "현재 변경을 최종 검증하고 필요한 수정 처리 후 PR까지 생성해 줘"
 opencode run --agent atom-reviewer "현재 변경을 요구사항과 대조해 검토해 줘"
 ```
 
@@ -66,7 +68,19 @@ ATOM Insight는 대화 안의 간결한 Markdown입니다. 완료 보고서를 �
 
 Insight 초안이 제공되면 Reviewer가 **기존 코드 검토 호출 안에서** 핵심 설명도 소스와 대조합니다. 별도 Insight Reviewer 호출이나 필수 초안 파일은 없습니다. 기본적으로 영구 결과물을 만들지 않고, 필요한 설계 결정만 기존 유지 문서에 보존합니다. Git 범위로 설명을 재생성할 수 있지만 당시 테스트 결과·화면·기록하지 않은 의도는 이력만으로 복원하지 않습니다. 전용 Insight Agent/Skill/DB/Runtime은 없습니다.
 
-Developer는 명시적으로 승인된 **비기본 작업 브랜치**에서 본인 변경만 stage하고 의미 있는 commit과 검증·검토된 변경의 일반 push를 수행할 수 있습니다. Git mutation 전 현재 브랜치가 main/master 및 실제 remote-default가 아님을 확인합니다. 명시적인 no-commit/no-push 요청과 host 권한은 우선합니다. 기본 브랜치 직접 push, force push, 파괴적인 Git 작업은 기본 금지입니다. 일반 개발은 현재 디렉터리에서 진행하며 worktree는 실제 병렬·격리 필요가 있을 때만 사용자와 협의합니다.
+### PR 책임과 승인
+
+- **Developer에게 구현부터 PR까지 요청:** Developer가 구현 → 테스트 → 독립 Reviewer → 수정·재검토 → Commit → 일반 Push → PR 생성을 책임집니다. QA는 필수 단계가 아닙니다.
+- **QA에게 최종 검증부터 PR까지 요청:** QA가 검증·후속 수정 전달·재검증·독립 검토 근거 확인·Commit·Push·PR을 책임집니다. 도움을 받아도 최초 책임자는 유지하며 사용자에게 일상적인 primary 전환을 요구하지 않습니다.
+- QA의 구현 결함은 기본적으로 Developer에게 재현·범위·baseline·사용자 변경·검증 결과·남은 검토 횟수·전달 한계와 함께 foreground 위임합니다. `atom-developer`의 `all` mode는 이 bounded helper 실행을 위한 것입니다. QA 직접 편집은 사용자가 명시적으로 승인한 작은 수정이고 프로젝트 역할 규칙과 host 권한이 허용할 때만 가능합니다. 포괄적인 `edit deny`는 제거하지만 무제한 구현 권한을 부여하지 않습니다.
+- QA/Developer 간 전달에도 **동일 묶음 전체 최대 3회** Reviewer 예산을 공유합니다. 최종 변경을 커버하는 실제 독립 `PASS`와 필요한 검사 통과 없이 publish하지 않습니다. Reviewer는 소유권을 넘겨받거나 runtime 검증을 대신하지 않습니다.
+- 명시적인 **PR 생성 요청은 해당 범위의 Commit·비기본 작업 브랜치 일반 Push·PR 생성을 승인**합니다. 단계별·브랜치명별 대화 재승인을 요구하지 않습니다. 단순 테스트·PR 요약·PR review 요청에는 이 승인이 없습니다. `local-only`, `no-commit`, `no-push` 등 명시적 제한과 host permission은 우선합니다.
+- Commit/Push 전 main/master·실제 remote-default가 아닌 작업 브랜치인지와 포함할 변경을 확인하고, 필요하면 기존 작업을 보존하며 작업 브랜치를 만듭니다. 외부 변경 전 repository·remote·push ref·PR base를 확인합니다. 기본 브랜치 직접 Push(`HEAD:main` 포함), Force Push, 이력 재작성·파괴적 명령·무관한 변경은 PR 요청만으로 승인되지 않습니다. **Merge는 사용자의 별도 명시적 결정**이 필요하며 auto-merge도 켜지 않습니다.
+- Jira 연동이 명시적으로 요청되지 않은 작업은 Jira를 변경하지 않습니다. GitHub helper 등은 기존 host/프로젝트 지침에 따라 사용하되 책임과 권한을 넘기거나 넓히지 않습니다. 실제 성공 응답의 URL만 생성된 PR로 보고합니다.
+
+일반 개발은 현재 디렉터리에서 진행하며 worktree는 실제 병렬·격리 필요가 있을 때만 사용자와 협의합니다. 별도 Router/Orchestrator나 새 Skill은 없습니다. 기존 TDD·검증·review Skill을 호환되는 범위에서 재사용하며, 승인된 작업에 Skill이 불필요한 Human Gate를 추가하지 않도록 합니다.
+
+OpenCode는 native `subagent`와 agent mode/permission을 사용합니다. Codex·Claude Code에서는 해당 host가 실제 제공하는 독립 agent/session 기능을 사용하며 OpenCode frontmatter·tool을 그대로 지원한다고 가정하지 않습니다. 독립 실행이나 위임이 없으면 구체적인 handoff/blocker를 보고하고 가능한 검증만 계속합니다. 자신을 독립 Reviewer로 간주하거나 host denial을 다른 CLI/도구로 우회하지 않습니다.
 
 ## 업데이트·제거
 
@@ -92,9 +106,9 @@ atom uninstall --ai opencode
 
 기존 agents, skills, `AGENTS.md`, model/provider 설정, 전역 permissions, 다른 CLI 설정은 수정하지 않습니다. Agent permission에는 권한을 넓히는 `allow` 규칙이 없으며 advisory profiles의 `edit` denial 등 필요한 제한만 추가합니다.
 
-Prompt는 sandbox가 아닙니다. Shell·테스트·MCP는 외부 영향을 줄 수 있고 child agent는 자신의 권한을 사용합니다. Agent는 우회하지 않도록 지시되지만 실제 보안 경계는 host permission/policy입니다. 파괴적 작업·배포·범위 밖 변경·아직 승인되지 않은 외부 mutation은 별도 명시적 승인과 host 권한이 필요합니다. QA의 PR 생성도 자동 실행하지 않습니다.
+Prompt는 sandbox가 아닙니다. Shell·테스트·MCP는 외부 영향을 줄 수 있고 child agent는 자신의 권한을 사용합니다. Agent는 우회하지 않도록 지시되지만 실제 보안 경계는 host permission/policy입니다. 파괴적 작업·배포·범위 밖 변경·아직 승인되지 않은 외부 mutation은 별도 명시적 승인과 host 권한이 필요합니다. 명시적인 PR 생성 요청은 위 범위의 승인이지 host permission 우회가 아닙니다.
 
-Reviewer는 실제 diff·소스·테스트 코드를 읽기 중심 shell 명령으로 조사할 수 있습니다. 테스트 실행·빌드·패키지 설치는 Developer 책임이며, 명령별 보안 시스템이나 shell 전체 차단을 추가하지 않습니다.
+Reviewer는 실제 diff·소스·테스트 코드를 읽기 중심 shell 명령으로 조사할 수 있습니다. 테스트 실행·빌드는 Developer/QA 책임이며, 명령별 보안 시스템이나 shell 전체 차단을 추가하지 않습니다.
 
 설치기는 symlink config/상위 경로/agent 디렉터리를 거부하고 symlink 파일을 보존합니다. `.atom-lock`으로 동시 ATOM mutation을 막고, 일반 오류·종료 signal에는 변경 파일을 rollback합니다. 이 잠금은 다른 편집기나 악의적인 동시 filesystem 변경을 막지 않습니다. `SIGKILL`·전원 손실에는 rollback을 보장하지 않으며 stale lock/잔여 staging 파일을 남길 수 있습니다. 해당 작업이 종료됐는지 확인하고 백업과 ownership을 점검한 뒤 복구하세요. Ownership을 잃은 파일은 자동 삭제·인수하지 않습니다.
 
@@ -106,6 +120,7 @@ Reviewer는 실제 diff·소스·테스트 코드를 읽기 중심 shell 명령�
 sh -n atom
 sh -n tests/installer.sh
 sh -n tests/opencode.sh
+sh -n tests/ownership.sh
 sh tests/installer.sh
 ```
 
@@ -115,9 +130,15 @@ Filesystem suite는 가짜 OpenCode path probe와 격리된 임시 config만 사
 
 ```sh
 ATOM_TEST_MODEL='PROVIDER/MODEL' sh tests/opencode.sh
+sh tests/ownership.sh
+# 별도 선택적 source-prompt 정책 실험 (각 CLI 기본 모델 사용):
+ATOM_TEST_HOST=codex sh tests/ownership.sh
+ATOM_TEST_HOST=claude sh tests/ownership.sh
 ```
 
 통합 suite는 JSON 근거 검사용 `jq`가 필요합니다(설치기에는 필요 없음). 임시 XDG 전역 config에 설치하고 서로 다른 두 프로젝트에서 다섯 agent를 실제 호출합니다. Child의 최종 assistant verdict 순서에서 `CHANGES_REQUIRED → PASS`를 확인하고 모델 상속, 사용자 파일 보존, Primary 전환 시 model 유지, 제거를 검사합니다. 상세 근거는 출력된 임시 경로의 로그로 확인할 수 있습니다. Git fixture는 commit 없이 staged draft를 사용하며 ATOM-specific 프로젝트 설정을 만들지 않습니다. 로그는 확인할 수 있도록 보존합니다.
+
+`ownership.sh`는 Developer/QA의 승인·소유권 정책 응답을 검사하고, OpenCode에서는 별도 로컬 Git fixture의 계산 결과·사용자 메모 보존·범위 내 Commit·Developer child 존재·Reviewer 최종 verdict를 자동 확인합니다. **수정 주체·agent의 실제 검사 실행·최종 변경의 검토 순서는 자동 판정하지 않습니다.** 생성된 `ownership-evaluation.md`에 따라 parent/child tool 기록과 최종 diff를 대조하기 전에는 native 역할 전달 성공을 주장하지 않습니다. remote를 설정하지 않고 실제 Push/PR/Merge/Jira 변경은 하지 않습니다. 정책 JSON 응답은 자체 진술이지 원격 동작의 실행 근거가 아닙니다. Codex/Claude 선택은 역할 본문을 명시적으로 전달하는 **정책 전용 실험**이며 native 설치·위임·Commit 검증은 생략합니다. 모델 오류/host 차단은 실패로 남기고 자동 fallback이나 `--auto`는 사용하지 않습니다. Prompt 계약이 모든 모델에서 보장된다는 뜻은 아닙니다.
 
 Insight 평가에는 기존 수정 사례의 간결한 최종 설명, 같은 기존 Reviewer 호출에 전달한 거짓 설명·검증 주장, 세 번째 프로젝트의 할인 계산 단계 설명을 사용합니다. 출력된 임시 경로의 `insight-evaluation.md`에 작은 의미 평가 기준과 이해 확인 질문을 남깁니다. 길이·불필요한 시각화·fixture 보존 guardrail은 자동 검사하지만 **설명 정확성·유용성은 소스/실행 근거와 대조해 평가**합니다. Guardrail 통과만으로 의미 평가 PASS를 주장하지 않습니다. 테스트 로그·평가 자료는 임시 실험 근거이며 설치 패키지나 프로젝트 문서로 배포하지 않습니다.
 
@@ -133,9 +154,11 @@ Insight 평가에는 기존 수정 사례의 간결한 최종 설명, 같은 기
 
 ### 현재 배포본 재검증 (2026-10-14)
 
-- `atom`, `tests/installer.sh`, `tests/opencode.sh`의 shell syntax 검사 통과; filesystem suite **31개 통과**.
-- 현재 통합 suite는 첫 Planner 호출에서 OpenCode 기본 모델의 `provider.invalid-request` (`The requested model is not supported`, HTTP 400)로 중단됐습니다. 모델·provider 설정은 변경하지 않았습니다.
-- 따라서 새 Insight 평가 사례의 실제 Agent 출력·의미 평가는 아직 미검증이며, 기존 통합 기록과 구분합니다. 사용자가 OpenCode에서 사용 가능한 모델을 선택한 환경에서 opt-in suite 재검증이 필요합니다.
+- Filesystem suite **31개 통과**. 소유권 변경은 Agent 본문과 README, opt-in 테스트에 한정하며 설치기·기존 Skill은 변경하지 않습니다.
+- `ownership.sh`의 실제 OpenCode 2.0.19 호출은 기본 모델의 `provider.invalid-request` (`The requested model is not supported`, HTTP 400)로 중단됐습니다. 모델·provider 설정은 변경하지 않았습니다. 따라서 새 native QA→Developer 전달·Reviewer·로컬 Commit 시나리오는 **미실행**이며 통과를 주장하지 않습니다.
+- Codex 0.160.1 역할 본문 정책 실험: 기존 QA는 독립 검토 필요·승인된 작은 직접 수정 항목에서 기대와 다르게 응답해 실패했고, 변경 후 Developer/QA는 각 13개 정책 판단을 통과했습니다. 이는 실제 CLI 출력에 대한 정책 회귀 근거이며 native 위임이나 원격 publish의 실행 증거는 아닙니다.
+- Claude Code 2.1.259도 변경 후 Developer/QA 각 13개 정책 판단을 통과했습니다. OpenCode와 마찬가지로 모델·provider·권한을 바꾸지 않았으며 Codex/Claude 실험은 독립적인 플랫폼 정책 실험이지 차단된 OpenCode 작업의 우회가 아닙니다.
+- 기존 Insight 평가 사례도 새 통합 실행 성공을 뜻하지 않습니다. 사용자가 OpenCode에서 사용 가능한 모델을 선택한 환경에서 opt-in suite 재검증이 필요합니다.
 
 미검증: 다른 OS/OpenCode 버전·model/provider, 실제 원격 commit/push/PR/배포, 3회 한도 소진·context compaction·30–60분 장기 작업, 모든 외부 skill workflow와의 행동 호환성. Superpowers/기존 skills 설치 파일은 변경하지 않으며 개별 지침 충돌은 host/user 정책에 따릅니다.
 
