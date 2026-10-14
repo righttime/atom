@@ -1,0 +1,248 @@
+#!/bin/sh
+# ATOM's global OpenCode installer. No model management or project configuration.
+set -eu
+umask 077
+VERSION=0.1.0
+NAMES='atom-planner.md atom-designer.md atom-developer.md atom-reviewer.md atom-qa.md'
+ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
+COMMAND=${1:-help}
+[ "$#" -eq 0 ] || shift
+AI=opencode
+DRY=0
+usage() {
+  cat <<'EOF'
+ATOM — Install once. Work anywhere. Adapt to every project.
+Usage: atom {install|update|status|uninstall} [--ai opencode] [--dry-run]
+Global installation is the default and only scope. No --global or project init.
+Update uses this local distribution; it does not download releases.
+EOF
+}
+die() { printf 'Error: %s\n' "$*" >&2; exit 1; }
+case "$COMMAND" in help|--help|-h) usage; exit 0 ;; install|update|status|uninstall) ;; *) usage >&2; exit 2 ;; esac
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --ai) [ "$#" -ge 2 ] || die '--ai needs a value'; AI=$2; shift 2 ;;
+    --dry-run) DRY=1; shift ;;
+    --help|-h) usage; exit 0 ;;
+    *) die "Unknown option: $1" ;;
+  esac
+done
+[ "$AI" = opencode ] || die 'Only --ai opencode is supported in v0.1'
+command -v opencode >/dev/null 2>&1 || die 'OpenCode is required (opencode must be on PATH)'
+CONFIG=$(opencode debug paths config) || die 'OpenCode configuration path discovery failed'
+case "$CONFIG" in /*) ;; *) die 'OpenCode must return an absolute configuration path' ;; esac
+NL='
+'
+case "$CONFIG" in *"$NL"*) die 'Multiline configuration path is not supported' ;; /) die 'Refusing filesystem root as configuration directory' ;; esac
+
+# Reject symlinks/non-directories along the entire destination path, even dangling links.
+safe_directory() {
+  check=$1
+  while [ "$check" != / ]; do
+    [ ! -L "$check" ] || die "Symlink directory is not supported: $check"
+    if [ -e "$check" ] && [ ! -d "$check" ]; then die "Not a directory: $check"; fi
+    case "$(basename -- "$check")" in .|..) die 'Non-canonical configuration path is not supported' ;; esac
+    check=$(dirname -- "$check")
+  done
+}
+safe_directory "$CONFIG"
+DEST=$CONFIG/agents
+MANIFEST=$CONFIG/.atom-manifest
+LOCK=$CONFIG/.atom-lock
+safe_directory "$DEST"
+[ ! -L "$MANIFEST" ] || die 'Manifest symlink: ownership cannot be established'
+if [ -e "$MANIFEST" ] && [ ! -f "$MANIFEST" ]; then die 'Manifest is not a regular file'; fi
+if command -v sha256sum >/dev/null 2>&1; then
+  hash_tool=sha256sum
+elif command -v shasum >/dev/null 2>&1; then
+  hash_tool=shasum
+else
+  die 'sha256sum or shasum is required'
+fi
+hash() {
+  if [ "$hash_tool" = sha256sum ]; then digest=$(sha256sum "$1") || return 1
+  else digest=$(shasum -a 256 "$1") || return 1; fi
+  digest=${digest%% *}
+  [ "${#digest}" -eq 64 ] || return 1
+  case "$digest" in *[!0-9a-f]*) return 1 ;; esac
+  printf '%s\n' "$digest"
+}
+
+# Never source the manifest. Accept only this format and the five fixed basenames.
+if [ -f "$MANIFEST" ]; then
+  awk '
+    NR==1 { if (NF!=2 || $1!="ATOM1" || $2 !~ /^[a-zA-Z0-9.-]+$/) exit 1; next }
+    { if (NF!=2 || $1 !~ /^atom-(planner|designer|developer|reviewer|qa)\.md$/ || seen[$1]++ || length($2)!=64 || $2 ~ /[^0-9a-f]/) exit 1 }
+    END { if (NR<1) exit 1 }
+  ' "$MANIFEST" || die 'Invalid manifest: preserving it because ownership cannot be established'
+fi
+owned_hash() { if [ -f "$MANIFEST" ]; then awk -v name="$1" '$1==name {print $2}' "$MANIFEST"; fi; }
+state() {
+  file=$DEST/$1
+  previous=$(owned_hash "$1")
+  if [ -L "$file" ]; then printf 'conflict\n'
+  elif [ ! -e "$file" ]; then printf 'missing\n'
+  elif [ ! -f "$file" ]; then printf 'conflict\n'
+  elif [ -z "$previous" ]; then printf 'unowned\n'
+  else
+    current_hash=$(hash "$file") || { printf 'conflict\n'; return; }
+    if [ "$current_hash" != "$previous" ]; then printf 'modified\n'; else printf 'owned\n'; fi
+  fi
+}
+printf 'AI CLI: %s\nInstallation directory: %s\nDistribution version: %s\n' "$AI" "$DEST" "$VERSION"
+if [ -f "$MANIFEST" ]; then
+  printf 'Installation version: %s\n' "$(awk 'NR==1 {print $2}' "$MANIFEST")"
+else
+  printf 'Installation version: not installed (no ownership manifest)\n'
+fi
+if [ "$COMMAND" = status ]; then
+  for name in $NAMES; do
+    case "$(state "$name")" in
+      owned) printf 'Installed %s\n' "$name" ;;
+      missing) printf 'Missing %s\n' "$name" ;;
+      modified) printf 'Modified %s (preserved)\n' "$name" ;;
+      *) printf 'Conflicting %s (unowned or unsafe; preserved)\n' "$name" ;;
+    esac
+  done
+  if [ -e "$LOCK" ] || [ -L "$LOCK" ]; then printf 'Warning: installation lock exists; mutation commands will stop\n'; fi
+  exit 0
+fi
+
+if [ "$COMMAND" != uninstall ]; then
+  [ ! -L "$ROOT/agents" ] || die 'Unsafe symlink source directory'
+  for name in $NAMES; do
+    source=$ROOT/agents/$name
+    [ -f "$source" ] && [ ! -L "$source" ] || die "Missing or unsafe source file: $source"
+  done
+fi
+
+# Preflight every target before creating directories or changing files.
+conflicts=0
+for name in $NAMES; do
+  case "$(state "$name")" in
+    modified|unowned|conflict)
+      printf 'Skipped %s: conflict; file is modified, unowned, or unsafe (preserved)\n' "$name"
+      if [ "$COMMAND" != uninstall ] || [ -n "$(owned_hash "$name")" ]; then conflicts=$((conflicts + 1)); fi
+      ;;
+  esac
+done
+if [ "$COMMAND" = install ] && [ "$conflicts" -gt 0 ]; then die 'Install aborted before writes; resolve conflicts explicitly, then retry'; fi
+
+if [ "$DRY" -eq 1 ]; then
+  for name in $NAMES; do
+    case "$(state "$name")" in
+      owned)
+        if [ "$COMMAND" = uninstall ]; then printf 'Would remove %s\n' "$name"
+        elif cmp -s "$ROOT/agents/$name" "$DEST/$name"; then printf 'Unchanged %s\n' "$name"
+        else printf 'Would update %s\n' "$name"; fi ;;
+      missing) [ "$COMMAND" = uninstall ] || printf 'Would install %s\n' "$name" ;;
+    esac
+  done
+  [ "$conflicts" -eq 0 ]
+  exit
+fi
+
+# No ownership means uninstall must not adopt or remove anything.
+if [ "$COMMAND" = uninstall ] && [ ! -f "$MANIFEST" ]; then
+  printf 'No owned installation to remove; all existing files preserved\n'
+  exit 0
+fi
+
+mkdir -p "$CONFIG"
+mkdir "$LOCK" 2>/dev/null || die "Installation lock exists or cannot be created: $LOCK (do not remove an active lock)"
+STAGE=
+DONE=0
+HAD_MANIFEST=0
+cleanup() {
+  result=$?
+  trap - EXIT HUP INT TERM
+  set +e
+  recovery=0
+  if [ -n "$STAGE" ]; then
+    if [ "$DONE" -eq 0 ]; then
+      # Roll back only paths we touched, never skipped or unrelated files.
+      for name in $NAMES; do
+        if [ -f "$STAGE/touched-$name" ]; then
+          if [ -f "$STAGE/old-$name" ]; then
+            if [ ! -L "$DEST/$name" ] && { [ ! -e "$DEST/$name" ] || [ -f "$DEST/$name" ]; } && /bin/mv -f "$STAGE/old-$name" "$DEST/$name"; then :
+            else recovery=1; printf 'Rollback failed for %s; backup: %s\n' "$name" "$STAGE/old-$name" >&2; fi
+          else
+            if [ ! -L "$DEST/$name" ] && { [ ! -e "$DEST/$name" ] || [ -f "$DEST/$name" ]; } && rm -f "$DEST/$name"; then :
+            else recovery=1; printf 'Rollback failed for newly installed %s; inspect %s\n' "$name" "$DEST/$name" >&2; fi
+          fi
+        fi
+      done
+      if [ -f "$STAGE/manifest-touched" ]; then
+        if [ "$HAD_MANIFEST" -eq 1 ]; then
+          if [ ! -L "$MANIFEST" ] && { [ ! -e "$MANIFEST" ] || [ -f "$MANIFEST" ]; } && /bin/mv -f "$STAGE/old-manifest" "$MANIFEST"; then :
+          else recovery=1; printf 'Manifest rollback failed; backup: %s\n' "$STAGE/old-manifest" >&2; fi
+        elif ! rm -f "$MANIFEST"; then recovery=1; fi
+      fi
+      if [ "$recovery" -eq 0 ]; then printf 'Operation failed; changed ATOM files rolled back\n' >&2
+      else printf 'Rollback incomplete; recovery backups preserved in %s\n' "$STAGE" >&2; result=1; fi
+    fi
+    if [ "$recovery" -eq 0 ]; then
+      for name in $NAMES; do rm -f "$STAGE/new-$name" "$STAGE/old-$name" "$STAGE/touched-$name"; done
+      rm -f "$STAGE/manifest" "$STAGE/old-manifest" "$STAGE/manifest-touched"
+      rmdir "$STAGE" 2>/dev/null || true
+    fi
+  fi
+  rmdir "$LOCK" 2>/dev/null || true
+  exit "$result"
+}
+trap cleanup EXIT
+trap 'exit 1' HUP INT TERM
+STAGE=$(mktemp -d "$CONFIG/.atom-stage.XXXXXX")
+mkdir -p "$DEST"
+if [ -f "$MANIFEST" ]; then cp -p "$MANIFEST" "$STAGE/old-manifest"; HAD_MANIFEST=1; fi
+
+# Prepare complete new contents and backups before the first mutation.
+printf 'ATOM1 %s\n' "$VERSION" > "$STAGE/manifest"
+for name in $NAMES; do
+  current=$(state "$name")
+  case "$current" in
+    owned)
+      cp -p "$DEST/$name" "$STAGE/old-$name"
+      if [ "$COMMAND" != uninstall ]; then
+        cp "$ROOT/agents/$name" "$STAGE/new-$name"
+        new_hash=$(hash "$STAGE/new-$name") || die "Cannot checksum source: $name"
+        printf '%s %s\n' "$name" "$new_hash" >> "$STAGE/manifest"
+      fi ;;
+    missing)
+      if [ "$COMMAND" != uninstall ]; then
+        cp "$ROOT/agents/$name" "$STAGE/new-$name"
+        new_hash=$(hash "$STAGE/new-$name") || die "Cannot checksum source: $name"
+        printf '%s %s\n' "$name" "$new_hash" >> "$STAGE/manifest"
+      fi ;;
+    *) previous=$(owned_hash "$name"); [ -z "$previous" ] || printf '%s %s\n' "$name" "$previous" >> "$STAGE/manifest" ;;
+  esac
+done
+for name in $NAMES; do
+  if [ -f "$STAGE/new-$name" ]; then
+    if [ -f "$STAGE/old-$name" ] && cmp -s "$STAGE/new-$name" "$DEST/$name"; then printf 'Unchanged %s\n' "$name"; continue; fi
+    # Detect ordinary edits made since preparation. No shell installer is a sandbox
+    # against a malicious process changing paths between checks and rename.
+    if [ -f "$STAGE/old-$name" ]; then
+      [ ! -L "$DEST/$name" ] && cmp -s "$STAGE/old-$name" "$DEST/$name" || die "Target changed during operation: $name"
+    else
+      [ ! -e "$DEST/$name" ] && [ ! -L "$DEST/$name" ] || die "Target appeared during operation: $name"
+    fi
+    : > "$STAGE/touched-$name"
+    mv "$STAGE/new-$name" "$DEST/$name"
+    if [ -f "$STAGE/old-$name" ]; then printf 'Updated %s\n' "$name"; else printf 'Installed %s\n' "$name"; fi
+  elif [ "$COMMAND" = uninstall ] && [ -f "$STAGE/old-$name" ]; then
+    [ ! -L "$DEST/$name" ] && cmp -s "$STAGE/old-$name" "$DEST/$name" || die "Target changed during operation: $name"
+    : > "$STAGE/touched-$name"
+    rm "$DEST/$name"
+    printf 'Removed %s\n' "$name"
+  fi
+done
+: > "$STAGE/manifest-touched"
+if [ "$COMMAND" = uninstall ] && [ "$(wc -l < "$STAGE/manifest")" -eq 1 ]; then
+  rm "$MANIFEST"
+else
+  mv "$STAGE/manifest" "$MANIFEST"
+fi
+DONE=1
+printf 'Finished. Skipped conflicts: %s. Existing OpenCode settings were not changed.\n' "$conflicts"
+[ "$conflicts" -eq 0 ]

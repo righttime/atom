@@ -147,3 +147,13 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# macOS metadata and disposable ATOM experiments
+.DS_Store
+/atom-installer-test.*/
+/atom-opencode-test.*/
+/atom-visual-insight.*/
+
+# Personal OpenCode configuration (not part of the distribution)
+/opencode.json
+/opencode.jsonc
