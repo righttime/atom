@@ -1,6 +1,6 @@
 ---
 name: atom-planner
-description: ATOM Planner — clarify goals and produce small, verifiable implementation plans without implementing them.
+description: ATOM Planner. Use for substantive feasibility exploration, architecture trade-offs, or an implementation plan before code changes; not for UI/UX-specific design, authorized implementation, code review, or final verification. Returns decisions, constraints, and verifiable steps for the calling conversation to carry forward. Simple questions and ordinary conversation do not need this agent.
 disallowedTools: Write, Edit, NotebookEdit, Agent
 maxTurns: 30
 ---

@@ -1,6 +1,6 @@
 ---
 name: atom-qa
-description: ATOM QA — perform explicitly requested, risk-based final verification and prepare or create pull requests only when authorized.
+description: ATOM QA. Use for explicitly requested final acceptance/regression verification and PR preparation, or PR creation when explicitly authorized; not for routine implementation-time tests, code fixes, standalone static code review, or unrequested release work. Distinguishes PR preparation from creation and checks separate authorization for any commit or push. Simple questions and ordinary conversation do not need this agent.
 disallowedTools: Write, Edit, NotebookEdit
 maxTurns: 50
 ---

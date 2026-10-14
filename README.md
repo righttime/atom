@@ -216,3 +216,31 @@ Insight 평가에는 기존 수정 사례의 간결한 최종 설명, 같은 기
 공식 V2 참고: [Agents](https://opencode.ai/v2/docs/agents), [Permissions](https://opencode.ai/v2/docs/permissions), [Skills](https://opencode.ai/v2/docs/skills), [Keybinds](https://opencode.ai/v2/docs/cli/keybinds).
 
 Claude 공식 참고: [Subagents](https://code.claude.com/docs/en/sub-agents), [CLI reference](https://code.claude.com/docs/en/cli-reference), [Environment variables](https://code.claude.com/docs/en/env-vars), [Skills](https://code.claude.com/docs/en/skills). 최신 문서의 모든 기능이 2.1.259에서 제공된다고 가정하지 않습니다.
+
+### 자연어 자동 위임: 단계적 실험
+
+Claude Agent 5개의 description에 의미 기반 호출 조건, 다른 역할과의 경계, 단순 질문·일반 대화 제외 조건을 추가했습니다. 본문의 도구 제한·모델 정책·Developer 독립 검토 계약은 유지합니다. Description은 host의 선택 근거이지 강제 라우팅 규칙이 아닙니다.
+
+```sh
+sh tests/claude-descriptions.sh # 정적 description 계약; 실제 라우팅 증거 아님
+sh tests/claude-routing.sh     # opt-in, 기존 인증/provider 환경과 jq 필요
+# 실행이 막힌 환경에서 읽기 전용 위임/중첩 호출만 시험:
+ATOM_TEST_ROUTING_PREFLIGHT=1 sh tests/claude-routing.sh
+# 검증용 후보 rule은 임시 config에만 복사, 사용자 전역 config에는 설치 안 함:
+ATOM_TEST_ROUTING_RULE=/absolute/path/to/candidate.md \
+  ATOM_TEST_ROUTING_PREFLIGHT=1 sh tests/claude-routing.sh
+```
+
+실험은 `--agent` 없이 기본 세션을 시작하고 같은 session ID를 resume합니다. 사용자 요청에는 Agent 이름이 없습니다. 초기에만 지정한 “비숫자 입력은 stdout 없이 종료 코드 17” 결정을 이후 요청에서 반복하지 않습니다. 단순 질문, 계획, UX, 독립 검토, QA, 구현 요청을 소수의 턴으로 시험합니다. Native `Agent`/`Task` 호출과 parent ID로 판정하며 역할처럼 보이는 텍스트는 위임 성공이 아닙니다. 실제 결정을 담은 child prompt/결과도 별도로 읽어 의미를 확인해야 합니다. 정상 실행 경로는 수정·테스트·재검토의 엄격한 parser 및 fixture 단언을 사용하며, preflight는 수정·재검토 성공을 주장하지 않습니다.
+
+권한 거부 시 script는 중단하고 로그를 보존합니다. 호출 횟수는 턴당 제한되지만 child 실행까지 전체 시간/비용 상한을 보장하지는 않습니다. 모델 선택·권한 부여·자동 로그인·실패 시 우회는 하지 않습니다.
+
+#### 2.1.259 실제 관측 (2026-10-14)
+
+- **Description만 적용:** 같은 기본 세션에서 계획·UX·독립 검토 요청에 ATOM 호출 **0회**. 단순 `2 + 2` 질문에도 호출 0회. QA는 기본 Claude가 직접 테스트를 시도했고 host 승인 미부여로 중단됐습니다. Developer 단계에는 도달하지 못했습니다.
+- **컨텍스트:** 기본 Claude의 다음 UX 응답에 초기 종료 코드 17/stdout 무출력 결정이 유지됐습니다. Agent가 호출되지 않았으므로 **Agent 간 전달 성공이 아닙니다**.
+- **격리 Rule 후보:** 사용자 전역 `rules/`에 해당하는 임시 경로에 최소 위임/전달 지침을 배치했습니다. 응답에 후보의 고유 `ATOM-HANDOFF-1` 태그가 나타나 로딩은 관측됐지만, 계획·UX·독립 검토의 실제 ATOM 호출은 다시 **0회**였습니다. 리뷰 단계의 별도 Bash 승인 거부로 중단됐고 모델의 다른 Bash 명령 재시도도 관측됐습니다. 이 후보의 효과는 검증되지 않아 **배포 Rule을 추가하지 않았습니다**.
+- **구현 전 중첩 검토 추가 실험:** 같은 Rule 세션을 resume하고 Bash·편집 도구를 금지해 기존에 차단된 작업과 독립적인 소스 읽기/native 위임만 요청했습니다. 기본 Claude가 Read로 직접 검토했고 Developer·Reviewer 호출은 **0회**였습니다. 모델은 중첩 검토가 “정책상 보장”된다고 주장했지만 실제 호출이 없어 검증 근거로 인정하지 않았습니다. 피드백 수정·재검토도 실행되지 않았습니다.
+- 결과는 작은 CLI fixture와 사용자의 기존 모델 설정에서의 관측입니다. 일반적인 UI 프로젝트, 다른 모델 또는 interactive 세션까지 “자동 위임 불가능”으로 일반화하지 않습니다. 반대로 초기 결정 기억이나 역할을 흉내 낸 답변을 전문가 위임 성공으로 간주하지 않습니다.
+
+현재 개선은 호출 메타데이터와 재현 가능한 실험까지이며, 기본 세션의 자동 전문가 선택을 보장하지 않습니다. Rule 필요성은 의심되지만 이번 후보로 해결된다는 근거는 없습니다. 실제 nested Developer → Reviewer 및 피드백 수정·재검토, Agent 간 결정 전달은 별도 성공 근거가 필요합니다. 기존 사용법인 명시적 native Agent 실행은 그대로 지원합니다.

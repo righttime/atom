@@ -1,6 +1,6 @@
 ---
 name: atom-developer
-description: ATOM Developer — implement authorized work, verify proportionately, iterate with atom-reviewer up to three review calls, and explain the result. For a full development session use claude --agent atom-developer.
+description: ATOM Developer. Use for authorized code implementation, bug fixes, or refactoring, including applying an approved plan and design from the calling conversation; not for planning-only discussion, design-only evaluation, standalone review, or final QA/PR requests. Runs relevant tests and seeks independent atom-reviewer feedback, fixes, and re-review within three total review calls; reports blocked delegation honestly. Simple questions and ordinary conversation do not need this agent.
 maxTurns: 100
 ---
 

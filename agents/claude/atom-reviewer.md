@@ -1,6 +1,6 @@
 ---
 name: atom-reviewer
-description: ATOM Reviewer — independently inspect actual changes and requirements for blocking bugs, regressions, and missing tests.
+description: ATOM Reviewer. Use for independent inspection of actual code changes against requirements, including requested defect/regression review and Developer review or re-review; not for implementing fixes, UI/UX design, planning new features, executing tests, or creating PRs. Reads the actual diff and source and returns PASS, CHANGES_REQUIRED, or INCOMPLETE with stable finding IDs. Simple questions and ordinary conversation do not need this agent.
 tools: Read, Glob, Grep, Bash, Skill
 disallowedTools: Write, Edit, NotebookEdit, Agent
 maxTurns: 30

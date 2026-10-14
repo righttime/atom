@@ -1,6 +1,6 @@
 ---
 name: atom-designer
-description: ATOM Designer — design new UI/UX and review existing flows, accessibility, usability, and consistency without implementing code.
+description: ATOM Designer. Use for substantive new UI/UX design or evaluation of existing screens, user flows, accessibility, and visual consistency; not for general software architecture, code implementation, independent code review, or final test execution. Returns actionable design decisions and acceptance criteria for subsequent implementation. Simple questions and ordinary conversation do not need this agent.
 disallowedTools: Write, Edit, NotebookEdit, Agent
 maxTurns: 30
 ---
