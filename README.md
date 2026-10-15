@@ -1,4 +1,4 @@
-# ATOM v0.2
+# ATOM v0.3
 
 **Install once. Work anywhere. Adapt to every project.**
 
@@ -17,24 +17,46 @@ ATOM은 기존 AI coding CLI에서 사용하는 가벼운 Markdown agent 모음�
 
 ## 설치
 
-저장소 checkout에서:
+먼저 [OpenCode V2 설치·provider 연결 안내](https://opencode.ai/v2/docs/)에 따라 `opencode`를 준비하세요. Git으로 이 저장소를 받은 뒤 설치합니다:
 
 ```sh
+git clone https://github.com/righttime/atom.git
+cd atom
 ./atom install --ai opencode --dry-run
 ./atom install --ai opencode
 ./atom status
 ```
 
-`atom`을 어느 디렉터리에서나 실행하려면 checkout의 절대 경로를 shell의 `PATH`에 추가하세요. 배포 파일 `agents/`, `skills/`가 필요하므로 checkout을 유지합니다.
+**PATH 등록은 선택 사항입니다.** 설치된 Agent는 PATH 등록 없이 다른 프로젝트에서도 사용할 수 있습니다. 설치기 `atom`을 어느 디렉터리에서나 실행하고 싶을 때만 checkout의 절대 경로를 shell의 `PATH`에 추가하세요. 배포 파일 `agents/`, `skills/`가 필요하므로 checkout을 유지합니다.
 
 ```sh
 export PATH="/absolute/path/to/atom:$PATH"
-atom install --ai opencode
+atom status
 ```
 
 모든 설치 작업은 **전역이 기본이자 유일한 범위**입니다. `--global`과 프로젝트별 설치는 지원하지 않습니다. 대상은 `opencode debug paths config`로 발견한 디렉터리의 `agents/`와 `skills/atom-routing.md`입니다. OpenCode가 인식하는 `XDG_CONFIG_HOME`, `OPENCODE_CONFIG_DIR` override를 그대로 따릅니다. 기존 전역 `AGENTS.md`나 Build 설정을 수정하지 않습니다.
 
-새 agent가 보이지 않으면 OpenCode를 다시 열거나 native `opencode reload`를 사용하세요. 설치기가 service를 자동 재시작하거나 현재 session을 변경하지는 않습니다.
+### 첫 성공 확인
+
+1. 위 `./atom status`에서 `Distribution version`과 `Installation version`이 일치하고, 다섯 Agent 파일과 `atom-routing.md`가 모두 `Installed <파일명>`으로 표시되는지 확인하세요. `Missing`, `Modified`, `Conflicting`이 있으면 [업데이트·제거](#업데이트제거)의 보존·충돌 정책을 먼저 확인하세요. Status의 종료 코드가 0인 것만으로 정상 설치를 판정하지 않습니다.
+2. **분석할 대상 프로젝트**로 이동해 OpenCode를 여세요. 프로젝트별 ATOM 초기화는 필요 없습니다.
+
+   ```sh
+   cd /path/to/your-project
+   opencode
+   ```
+
+3. Agent 목록에서 `atom-planner`를 직접 선택하고 아래처럼 읽기 전용으로 요청하세요.
+
+   > 이 프로젝트의 구조와 실행·테스트 방법을 읽기 전용으로 간단히 설명해 줘. 파일 수정·명령을 통한 외부 변경·commit·push는 하지 마.
+
+   성공 기준은 `atom-planner`를 선택할 수 있고, 파일을 변경하지 않은 채 프로젝트에 근거한 설명을 받는 것입니다. CLI로 직접 호출해도 됩니다(실제 모델 호출이며 provider 설정에 따라 비용이 발생할 수 있습니다):
+
+   ```sh
+   opencode run --agent atom-planner "이 프로젝트의 구조와 실행·테스트 방법을 읽기 전용으로 간단히 설명해 줘. 파일 수정·명령을 통한 외부 변경·commit·push는 하지 마."
+   ```
+
+Agent가 보이지 않으면 OpenCode를 다시 열거나, 설치된 버전의 `opencode reload --help`로 지원 여부를 확인한 뒤 `opencode reload`로 설정을 다시 불러오세요. 설치기가 service를 자동 재시작하거나 현재 session을 변경하지는 않습니다. 일반 Build에서 자동 routing이 동작하지 않아도 위 직접 선택·CLI 호출로 사용할 수 있습니다. 직접 호출의 성공은 자동 routing의 성공을 뜻하지 않습니다. 모델·권한 오류는 해당 오류를 확인하고, 권한을 우회하거나 모델을 임의로 바꾸지 마세요.
 
 ## 사용
 
@@ -53,6 +75,8 @@ atom install --ai opencode
 
 코드 설명·함수 이름 추천·작은 예제에는 위임이나 무거운 계획을 요구하지 않습니다. 사용자가 명시한 Agent 선택은 존중합니다. 기존 직접 선택도 유지됩니다: agent 목록, `Ctrl+X` 다음 `A`, `Shift+Tab`(사용자 keybind에 따라 다름).
 
+요청 범위 안의 구현·테스트·검토와 외부 변경 승인은 구분합니다. **PR 생성까지 명시적으로 요청하면** 해당 범위의 commit·비기본 작업 브랜치 push·PR 생성도 승인한 것으로 봅니다. 단순 검토·테스트·PR 초안 요청은 이를 승인하지 않습니다. `no-commit`·`no-push` 같은 제한과 host permission은 항상 우선하며, Merge·배포·파괴적 작업·범위 밖 외부 변경은 별도 명시적 승인이 필요합니다. 자세한 경계는 [안전 경계와 제한](#안전-경계와-제한), [PR 책임과 승인](#pr-책임과-승인)을 참고하세요.
+
 | Agent | 역할 | Mode |
 | --- | --- | --- |
 | `atom-planner` | 자연어 의도에 맞춘 Explore / Design / Plan / Deep Dive | `all` |
@@ -68,6 +92,10 @@ opencode run --agent atom-developer "이 수정을 구현하고 테스트·검�
 opencode run --agent atom-qa "현재 변경을 최종 검증하고 blocking이 없으면 PR까지 생성해 줘. Jira는 건드리지 마"
 opencode run --agent atom-reviewer "현재 변경을 요구사항과 대조해 검토해 줘"
 ```
+
+## 고급 동작과 제한
+
+### 위임·검토·결과 설명
 
 고정 workflow는 없습니다. 프로젝트의 stack·구조·컨벤션·`AGENTS.md`·skills·테스트·권한은 OpenCode의 native context를 사용합니다. Superpowers는 선택 사항이며 기존 skills를 설치·복제·덮어쓰지 않습니다. 이미 승인된 작업에 불필요한 재승인·commit·문서 생성 절차를 추가하지 않습니다.
 

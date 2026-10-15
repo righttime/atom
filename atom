@@ -2,7 +2,7 @@
 # ATOM's global OpenCode installer. No model management or project configuration.
 set -eu
 umask 077
-VERSION=0.2.0
+VERSION=0.3.0
 NAMES='atom-planner.md atom-designer.md atom-developer.md atom-reviewer.md atom-qa.md atom-routing.md'
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
 COMMAND=${1:-help}
@@ -27,7 +27,7 @@ while [ "$#" -gt 0 ]; do
     *) die "Unknown option: $1" ;;
   esac
 done
-[ "$AI" = opencode ] || die 'Only --ai opencode is supported in v0.2'
+[ "$AI" = opencode ] || die "Only --ai opencode is supported in v$VERSION"
 command -v opencode >/dev/null 2>&1 || die 'OpenCode is required (opencode must be on PATH)'
 CONFIG=$(opencode debug paths config) || die 'OpenCode configuration path discovery failed'
 case "$CONFIG" in /*) ;; *) die 'OpenCode must return an absolute configuration path' ;; esac
