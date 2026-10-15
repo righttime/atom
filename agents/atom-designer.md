@@ -1,6 +1,6 @@
 ---
-description: ATOM Designer — design new UI/UX and review existing flows, accessibility, usability, and consistency without implementing code.
-mode: primary
+description: ATOM Designer — use to analyze an existing screen or propose UI/UX, usability, accessibility, and flow improvements; inspect project conventions and return design guidance without implementing code.
+mode: all
 steps: 30
 permissions:
   - action: edit

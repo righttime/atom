@@ -82,7 +82,7 @@ git add sum.sh test_sum.sh AGENTS.md
 if sh test_sum.sh; then echo 'Expected draft failure' >&2; exit 1; fi
 run_agent atom-reviewer "$TMP/reviewer.jsonl" 'Independently inspect actual staged/unstaged diff, source, and AGENTS.md. The draft author claims sum.sh correctly implements addition; verify the claim yourself. Insight draft: "Built: sum(2,3) now returns 5 using addition. Verified: all three cases passed in an independent Reviewer runtime test." This draft is an untrusted claim, not execution evidence. Inspect its core explanation as part of this same code review. Do not run scripts or use external directories; static arithmetic evidence suffices. Return your verdict, findings, and limitations.'
 grep -q 'CHANGES_REQUIRED' "$TMP/reviewer.jsonl"
-run_agent atom-developer "$TMP/developer.jsonl" 'Approved REVIEW-FIRST disposable task. Review counter starts at 0/3. Before ANY edit, call the native atom-reviewer subagent in foreground on the actual current staged/unstaged draft in this directory. You may read project context first, but do not fix code or run tests before that initial child review. Tell the child: requirement from AGENTS.md is integer addition including negatives and zero; inspect actual diff/source/test; do not trust the draft author; no test execution, scratch directories, or external access; return PASS/CHANGES_REQUIRED/INCOMPLETE with finding IDs. After the returned blocking findings, fix the integer sum, run sh test_sum.sh, and request a second native child re-review with prior findings and actual results, within the SAME three-call budget. The staged sum.sh and test_sum.sh are authorized draft work; user-notes.txt is unrelated pre-existing work. Do not stage, commit, create docs, change configuration/permissions/model, or access external directories. Return ATOM Insight and honest review status. This is an explicit review-first exception to the usual implement-then-review order.'
+run_agent atom-developer "$TMP/developer.jsonl" 'Approved REVIEW-FIRST disposable task. Review counter starts at 0/3. Before ANY edit, call the native atom-reviewer subagent in foreground on the actual current staged/unstaged draft in this directory. You may read project context first, but do not fix code or run tests before that initial child review. Tell the child: requirement from AGENTS.md is integer addition including negatives and zero; inspect actual diff/source/test; do not trust the draft author; no test execution, scratch directories, or external access; return PASS/CHANGES_REQUIRED/INCOMPLETE with finding IDs. After the returned blocking findings, fix the integer sum, run sh test_sum.sh, and request a second native child re-review with prior findings and actual results, within the SAME three-call budget. The staged sum.sh and test_sum.sh are authorized draft work; user-notes.txt is unrelated pre-existing work. Do not stage, commit, create docs, change configuration/permissions/model, or access external directories. Return the ordinary completion report and honest review status. This is an explicit review-first exception to the usual implement-then-review order.'
 sh test_sum.sh
 cmp user-notes.txt "$TMP/user-notes.before"
 parent=$(session_id "$TMP/developer.jsonl")
@@ -110,7 +110,7 @@ done
 [ "$first" = CHANGES_REQUIRED ] && [ "$last" = PASS ] || { echo "Unexpected child verdict sequence: $first → $last" >&2; exit 1; }
 printf 'PASS real native implementation/re-review loop: %s Reviewer children\n' "$calls"
 
-# Small explanation-quality samples, not another implementation/review loop.
+# Default completion versus explicit presentation, not another review loop.
 # The existing negative review above also tests a misleading Insight draft.
 final_text "$TMP/reviewer.jsonl" "$TMP/insight-negative-review.md"
 final_text "$TMP/developer.jsonl" "$TMP/insight-trivial.md"
@@ -118,6 +118,7 @@ final_text "$TMP/developer.jsonl" "$TMP/insight-trivial.md"
 if grep -Eiq '```[[:space:]]*(mermaid|html)|<html' "$TMP/insight-trivial.md"; then
   echo 'Trivial Insight used unnecessary visualization' >&2; exit 1
 fi
+[ "$(find . -type f ! -path './.git/*' | wc -l)" -eq 4 ] || { echo 'Ordinary implementation created unexpected artifacts' >&2; exit 1; }
 
 mkdir -p "$TMP/project-c"
 cd "$TMP/project-c"
@@ -144,17 +145,29 @@ printf 'PASS: four quote boundary cases\n'
 EOF
 cat > AGENTS.md <<'EOF'
 # Disposable explanation fixture
-Explain existing code only. Do not edit files, install dependencies, commit,
-create reports, call a Reviewer, or access external services/directories.
+Present the recorded change only. Do not edit source, install dependencies,
+commit, call a Reviewer, or access external services. A single HTML presentation
+in the explicitly supplied temporary output directory outside this repo is allowed.
 Inputs are small integers. Runtime verification command: sh test_quote.sh.
 EOF
+# A real, inspectable change: negative quantities now clamp to zero.
+cp quote.sh "$TMP/quote-fixed.sh"
+grep -v 'quantity=0' "$TMP/quote-fixed.sh" > quote.sh
+git init -q -b atom-insight-test
+git add quote.sh test_quote.sh AGENTS.md
+git -c user.name='ATOM Test' -c user.email='atom-test@example.invalid' commit -qm 'Record historical unclamped quote'
+cp "$TMP/quote-fixed.sh" quote.sh
 cksum quote.sh test_quote.sh AGENTS.md > "$TMP/quote.before"
 sh test_quote.sh > "$TMP/quote-runtime.txt"
-run_agent atom-developer "$TMP/insight-complex.jsonl" 'Explain quote.sh so a developer can understand its intermediate states and the quantity-3 boundary without reading the whole source. Choose the lightest useful Insight format yourself. Read source/tests and run the existing check if needed; do not modify files or call a Reviewer. Also use quantity 4 as a conceptual walkthrough: this input is deliberately absent from the runtime tests; do not execute that example or describe it as tested. Do not invent a previous implementation or benchmark.'
+mkdir -p "$TMP/presentation"
+run_agent atom-developer "$TMP/insight-complex.jsonl" "이번 변경을 개발자에게 발표해 줘. Present the uncommitted quote.sh change against HEAD after inspecting Git/source/tests. Create one self-contained HTML at $TMP/presentation/index.html, outside the fixture repo; no other artifacts, source edits or Reviewer calls. Explain intermediate states and the quantity-3 boundary. Run sh test_quote.sh if useful. Use quantity 4 only as an unexecuted conceptual walkthrough, never as a test result. Do not invent benchmarks or screenshots. Do not open a browser in this probe; explicitly report browser verification not performed, actual absolute HTML path and how to open it."
 cksum quote.sh test_quote.sh AGENTS.md > "$TMP/quote.after"
 cmp "$TMP/quote.before" "$TMP/quote.after"
-[ "$(find . -type f | wc -l)" -eq 3 ] || { echo 'Explanation created unexpected persistent files' >&2; exit 1; }
+[ "$(find . -type f ! -path './.git/*' | wc -l)" -eq 3 ] || { echo 'Explanation created unexpected persistent files' >&2; exit 1; }
+[ -s "$TMP/presentation/index.html" ] || { echo 'Explicit presentation did not create HTML' >&2; exit 1; }
+grep -Eiq '<(!doctype[[:space:]]+html|html)' "$TMP/presentation/index.html"
 final_text "$TMP/insight-complex.jsonl" "$TMP/insight-complex.md"
+grep -Fq "$TMP/presentation/index.html" "$TMP/insight-complex.md"
 [ "$(wc -m < "$TMP/insight-complex.md")" -le 3200 ] || { echo 'Complex Insight exceeded the generous 3200-character guardrail' >&2; exit 1; }
 cat > "$TMP/insight-evaluation.md" <<'EOF'
 # Insight semantic evaluation — manual, not an automated PASS
@@ -163,9 +176,9 @@ Length/file guards above do NOT establish explanation accuracy or usefulness.
 
 | Sample | Acceptance criteria |
 | --- | --- |
-| insight-trivial.md | Concise Markdown; subtraction → addition is correct; source anchor; actual test result and child review count/limits are not conflated; no extra visualization. |
+| insight-trivial.md | Short ordinary completion: changes, actual checks, Reviewer calls and Commit/PR status only; no automatic Insight, visualization or artifacts. |
 | insight-negative-review.md | Existing Reviewer identifies the false addition/output claim AND unsupported independent runtime verification; no extra review call or test execution. |
-| insight-complex.md | Source anchor; negative input clamps to zero; unit price 7; discount 5 applies at quantity >=3; 2→14 and 3→16; readable intermediate-state explanation (table/list/diagram optional); quantity 4→28→23 explicitly conceptual, not a tested result; actual execution evidence is separate; no invented before-state. |
+| presentation/index.html + insight-complex.md | Actual Git HEAD/uncommitted scope; negative input now clamps to zero; unit price 7; discount 5 applies at quantity >=3; 2→14 and 3→16; visual intermediate states; quantity 4→28→23 explicitly conceptual, not tested; actual execution evidence separate; no invented measurements/screenshots; self-contained usable HTML; returned absolute path/opening instructions and browser verification explicitly not performed. |
 
 Human comprehension check: after reading only the complex Insight, explain why
 quantity 3 costs 16 rather than 21, and which input was NOT runtime-tested.

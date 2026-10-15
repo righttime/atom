@@ -1,5 +1,5 @@
 ---
-description: ATOM Reviewer — independently inspect actual changes and requirements for blocking bugs, regressions, and missing tests.
+description: ATOM Reviewer — use when independent code review is requested or after implementation; inspect actual staged/unstaged changes and new files against requirements for defects, regressions, and missing tests. Read-only, never implement fixes.
 mode: all
 steps: 30
 permissions:
