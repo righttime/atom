@@ -17,11 +17,15 @@ Humans describe the goal. ATOM selects the right expertise. Use only the host's 
 | --- | --- | --- |
 | Feasibility, alternatives, requirements, approach before implementation | `atom-planner` | Read-only; brief exploration unless a detailed plan is requested |
 | UI/UX, screen usability, accessibility, existing interface analysis | `atom-designer` | Inspect relevant project UI; recommendations, not implementation |
-| Implement, fix, or continue an approved design | `atom-developer` | Implementation, relevant checks, independent Reviewer loop |
+| Implement, fix, or continue an approved design | `atom-developer` | Implementation, relevant checks, independent Reviewer loop, scoped local commit; no push/PR |
+| Implement through PR creation | `atom-developer` | Same owner through checks/review/commit/ordinary push/PR; QA optional |
 | Independent review of actual current changes | `atom-reviewer` | Read-only review, not a rewrite or runtime test campaign |
-| Final verification, release readiness, PR preparation | `atom-qa` | Risk-based checks and PR draft; publishing only if explicitly authorized |
+| Final verification, release readiness, PR preparation | `atom-qa` | Checks/results only; PR preparation or a PR draft is not publication approval |
+| Verify through PR creation | `atom-qa` | Checks/review then scoped commit/ordinary push/PR if no blockers; no implicit fix loop |
 
 Choose by the requested deliverable: "implement this UI improvement" is Developer; "analyze its UX" is Designer. Do not run all five roles for one request. QA is not mandatory after Developer. Ask only when an ambiguity genuinely blocks correct authorized work. Do not repeat brainstorming, design approval, or planning for already approved requirements.
+
+Goal approval authorizes ordinary in-scope substeps without step-by-step reapproval; it does not override explicit no-commit/no-push/local-only limits, project rules, or host denials. Preserve all exclusions, including "do not touch Jira". PR preparation or a PR draft is not publication approval. QA verification alone does not authorize commit/push/PR or fixes; verification + PR authorizes publication only when blockers are absent. QA reports blocking defects and required follow-up rather than implicitly editing or delegating repairs, unless separate explicit fix authorization or an applicable explicit role policy permits it. Keep explicit agent selection and the shared foreground Reviewer limit unchanged.
 
 ## Carry context in the call
 

@@ -44,7 +44,10 @@ atom install --ai opencode
 | --- | --- |
 | 이 기능이 가능한지, 구현 전에 접근 방법을 검토해 줘 | Planner |
 | 기존 설정 화면을 분석하고 UX 개선 방향을 제안해 줘 | Designer |
-| 좋아, 그 설계대로 구현해 줘 | Developer → 독립 Reviewer |
+| 좋아, 그 설계대로 구현해 줘 | Developer → 독립 Reviewer → scoped local Commit (Push/PR 없음) |
+| 이 기능을 구현하고 PR까지 생성해 줘 | Developer 소유: 구현·검증·검토·Commit·일반 Push·PR |
+| 최종 검증만 해 줘 | QA: 검사·결과보고만 (Commit/Push/PR·자동 수정 없음) |
+| 최종 검증하고 PR까지 생성해 줘 | QA 소유: blocking 없을 때 Commit·일반 Push·PR |
 | 현재 변경 사항을 독립적으로 검토해 줘 | Reviewer |
 | 최종 검증하고 PR 초안을 준비해 줘. 생성은 하지 마 | QA |
 
@@ -56,13 +59,13 @@ atom install --ai opencode
 | `atom-designer` | 신규 UI/UX 설계, 기존 흐름·접근성·일관성 검토 | `all` |
 | `atom-developer` | 요청된 구현부터 PR까지 책임, 검증·독립 검토·수정·Insight | `all` |
 | `atom-reviewer` | 요약을 믿지 않고 실제 staged/unstaged diff·새 파일·요구사항 검토 | `all` |
-| `atom-qa` | 요청된 최종 검증부터 PR까지 책임, 범위 내 수정 전달·재검증 | `all` |
+| `atom-qa` | 검증·결과보고, 명시 PR 요청 시 publish; blocking은 보고, 수정은 별도 승인 | `all` |
 
 ```sh
 opencode run --agent atom-planner "이 아이디어의 가능성만 간단히 검토해 줘"
 opencode run --agent atom-developer "승인된 계획을 구현하고 검토해 줘"
 opencode run --agent atom-developer "이 수정을 구현하고 테스트·검토 후 PR까지 생성해 줘"
-opencode run --agent atom-qa "현재 변경을 최종 검증하고 필요한 수정 처리 후 PR까지 생성해 줘"
+opencode run --agent atom-qa "현재 변경을 최종 검증하고 blocking이 없으면 PR까지 생성해 줘. Jira는 건드리지 마"
 opencode run --agent atom-reviewer "현재 변경을 요구사항과 대조해 검토해 줘"
 ```
 
@@ -86,11 +89,13 @@ Insight 초안이 제공되면 Reviewer가 **기존 코드 검토 호출 안에�
 
 ### PR 책임과 승인
 
-- **Developer에게 구현부터 PR까지 요청:** Developer가 구현 → 테스트 → 독립 Reviewer → 수정·재검토 → Commit → 일반 Push → PR 생성을 책임집니다. QA는 필수 단계가 아닙니다.
-- **QA에게 최종 검증부터 PR까지 요청:** QA가 검증·후속 수정 전달·재검증·독립 검토 근거 확인·Commit·Push·PR을 책임집니다. 도움을 받아도 최초 책임자는 유지하며 사용자에게 일상적인 primary 전환을 요구하지 않습니다.
-- QA의 구현 결함은 기본적으로 Developer에게 재현·범위·baseline·사용자 변경·검증 결과·남은 검토 횟수·전달 한계와 함께 foreground 위임합니다. `atom-developer`의 `all` mode는 이 bounded helper 실행을 위한 것입니다. QA 직접 편집은 사용자가 명시적으로 승인한 작은 수정이고 프로젝트 역할 규칙과 host 권한이 허용할 때만 가능합니다. 포괄적인 `edit deny`는 제거하지만 무제한 구현 권한을 부여하지 않습니다.
+- **Developer에게 일반 구현 요청:** 구현 → 관련 테스트 → 독립 Reviewer → blocking 수정·재검증 → 의미 있는 scoped local Commit까지 승인합니다. Push/PR은 승인하지 않습니다. 사용자·프로젝트·host의 `no-commit` 같은 명시 제한은 우선합니다.
+- **Developer에게 구현부터 PR까지 요청:** 위 과정에 일반 Push·PR 생성까지 포함하며 Developer가 계속 소유합니다. QA는 필수 단계가 아닙니다.
+- **QA에게 검증만 요청:** 검사와 결과보고만 수행하며 Commit/Push/PR·직접 구현 수정·암묵적 helper 수정루프는 승인하지 않습니다.
+- **QA에게 검증부터 PR까지 요청:** QA가 검증·독립 검토 근거 확인 후 blocking이 없으면 scoped Commit·일반 Push·PR을 재승인 없이 책임집니다. Blocking 발견 시 publish를 강행하지 않고 문제와 필요한 후속작업을 보고합니다.
+- QA의 수정 예외는 별도 명시적 수정 승인이나 명시된 역할 정책이 있을 때뿐입니다. 승인된 구현 수정은 Developer에게 재현·범위·baseline·사용자 변경·검증 결과·남은 검토 횟수·전달 한계와 함께 foreground 위임합니다. QA 직접 편집도 해당 bounded 수정의 명시 승인·프로젝트 역할 규칙·host 권한이 필요합니다. 도움을 받아도 최초 책임자는 유지하며 일상적인 primary 전환을 요구하지 않습니다.
 - QA/Developer 간 전달에도 **동일 묶음 전체 최대 3회** Reviewer 예산을 공유합니다. 최종 변경을 커버하는 실제 독립 `PASS`와 필요한 검사 통과 없이 publish하지 않습니다. Reviewer는 소유권을 넘겨받거나 runtime 검증을 대신하지 않습니다.
-- 명시적인 **PR 생성 요청은 해당 범위의 Commit·비기본 작업 브랜치 일반 Push·PR 생성을 승인**합니다. 단계별·브랜치명별 대화 재승인을 요구하지 않습니다. 단순 테스트·PR 요약·PR review 요청에는 이 승인이 없습니다. `local-only`, `no-commit`, `no-push` 등 명시적 제한과 host permission은 우선합니다.
+- 명시적인 **PR 생성 요청은 해당 범위의 Commit·비기본 작업 브랜치 일반 Push·PR 생성을 승인**합니다. Goal 승인에 포함된 통상 하위작업의 단계별·브랜치명별 재승인을 요구하지 않습니다. 단순 테스트·PR 준비·PR 초안·PR 요약·PR review에는 publish 승인이 없습니다. Repository/base가 설정·관례로 명확하면 다시 묻지 않으며 적절한 작업 브랜치는 유지합니다. `local-only`, `no-commit`, `no-push` 등 명시적 제한과 host permission은 우선합니다.
 - Commit/Push 전 main/master·실제 remote-default가 아닌 작업 브랜치인지와 포함할 변경을 확인하고, 필요하면 기존 작업을 보존하며 작업 브랜치를 만듭니다. 외부 변경 전 repository·remote·push ref·PR base를 확인합니다. 기본 브랜치 직접 Push(`HEAD:main` 포함), Force Push, 이력 재작성·파괴적 명령·무관한 변경은 PR 요청만으로 승인되지 않습니다. **Merge는 사용자의 별도 명시적 결정**이 필요하며 auto-merge도 켜지 않습니다.
 - Jira 연동이 명시적으로 요청되지 않은 작업은 Jira를 변경하지 않습니다. GitHub helper 등은 기존 host/프로젝트 지침에 따라 사용하되 책임과 권한을 넘기거나 넓히지 않습니다. 실제 성공 응답의 URL만 생성된 PR로 보고합니다.
 
@@ -138,7 +143,11 @@ sh -n tests/installer.sh
 sh -n tests/opencode.sh
 sh -n tests/ownership.sh
 sh -n tests/routing.sh
+sh -n tests/policy.sh
+sh -n tests/policy-mock.sh
 sh tests/installer.sh
+sh tests/policy.sh
+sh tests/policy-mock.sh
 ```
 
 Filesystem suite는 가짜 OpenCode path probe와 격리된 임시 config만 사용합니다. 실제 사용자 config에는 접근하지 않습니다. Clean/repeated install, update, uninstall, dry-run, 충돌·수정 보존, 누락 복구, source/checksum 오류, 경로 override, symlink, rollback, lock, 다른 agent·skill·설정 보존을 검증합니다.
@@ -158,7 +167,9 @@ ATOM_TEST_HOST=claude sh tests/ownership.sh
 
 통합 suite는 JSON 근거 검사용 `jq`가 필요합니다(설치기에는 필요 없음). 임시 XDG 전역 config에 설치하고 서로 다른 두 프로젝트에서 다섯 agent를 실제 호출합니다. Child의 최종 assistant verdict 순서에서 `CHANGES_REQUIRED → PASS`를 확인하고 모델 상속, 사용자 파일 보존, Primary 전환 시 model 유지, 제거를 검사합니다. 상세 근거는 출력된 임시 경로의 로그로 확인할 수 있습니다. Git fixture는 commit 없이 staged draft를 사용하며 ATOM-specific 프로젝트 설정을 만들지 않습니다. 로그는 확인할 수 있도록 보존합니다.
 
-`ownership.sh`는 Developer/QA의 승인·소유권 정책 응답을 검사하고, OpenCode에서는 별도 로컬 Git fixture의 계산 결과·사용자 메모 보존·범위 내 Commit·Developer child 존재·Reviewer 최종 verdict를 자동 확인합니다. **수정 주체·agent의 실제 검사 실행·최종 변경의 검토 순서는 자동 판정하지 않습니다.** 생성된 `ownership-evaluation.md`에 따라 parent/child tool 기록과 최종 diff를 대조하기 전에는 native 역할 전달 성공을 주장하지 않습니다. remote를 설정하지 않고 실제 Push/PR/Merge/Jira 변경은 하지 않습니다. 정책 JSON 응답은 자체 진술이지 원격 동작의 실행 근거가 아닙니다. Codex/Claude 선택은 역할 본문을 명시적으로 전달하는 **정책 전용 실험**이며 native 설치·위임·Commit 검증은 생략합니다. 모델 오류/host 차단은 실패로 남기고 자동 fallback이나 `--auto`는 사용하지 않습니다. Prompt 계약이 모든 모델에서 보장된다는 뜻은 아닙니다.
+`policy.sh`는 A 구현→local Commit, B 구현+PR→publish, C 검증→검사·보고만, D 검증+PR→blocking 없을 때 publish, E PR 준비→no publish, F Jira 제외의 **prompt 문자열/static guard**를 검사합니다. `policy-mock.sh`는 기존 Claude 정책 전용 호출 경로를 가짜 CLI/JSON으로 실행하고 잘못된 A–F 응답의 거절을 확인합니다. 모델 호출·Claude 실제 준수·native 위임·host 권한 집행·실제 publish 검증은 아닙니다. Claude 설치 adapter는 없습니다.
+
+`ownership.sh`는 Developer/QA의 승인·소유권 정책 응답을 검사하고, OpenCode에서는 별도 로컬 Git fixture의 계산 결과·사용자 메모 보존·범위 내 Commit·Developer child 존재·Reviewer 최종 verdict를 자동 확인합니다. QA fixture는 **수정·Developer 위임을 별도로 명시 승인한 예외**이며 검증만으로 수정이 승인된다는 뜻이 아닙니다. **수정 주체·agent의 실제 검사 실행·최종 변경의 검토 순서는 자동 판정하지 않습니다.** 생성된 `ownership-evaluation.md`에 따라 parent/child tool 기록과 최종 diff를 대조하기 전에는 native 역할 전달 성공을 주장하지 않습니다. remote를 설정하지 않고 실제 Push/PR/Merge/Jira 변경은 하지 않습니다. 정책 JSON 응답은 자체 진술이지 원격 동작의 실행 근거가 아닙니다. Codex/Claude 선택은 역할 본문을 명시적으로 전달하는 **정책 전용 실험**이며 native 설치·위임·Commit 검증은 생략합니다. 모델 오류/host 차단은 실패로 남기고 자동 fallback이나 `--auto`는 사용하지 않습니다. Prompt 계약이 모든 모델에서 보장된다는 뜻은 아닙니다. 아래 과거 검증 기록은 당시 정책 결과이며 이 변경의 modeled 행동 재검증이 아닙니다.
 
 Insight 평가에는 기존 수정 사례의 간결한 최종 설명, 같은 기존 Reviewer 호출에 전달한 거짓 설명·검증 주장, 세 번째 프로젝트의 할인 계산 단계 설명을 사용합니다. 출력된 임시 경로의 `insight-evaluation.md`에 작은 의미 평가 기준과 이해 확인 질문을 남깁니다. 길이·불필요한 시각화·fixture 보존 guardrail은 자동 검사하지만 **설명 정확성·유용성은 소스/실행 근거와 대조해 평가**합니다. Guardrail 통과만으로 의미 평가 PASS를 주장하지 않습니다. 테스트 로그·평가 자료는 임시 실험 근거이며 설치 패키지나 프로젝트 문서로 배포하지 않습니다.
 
