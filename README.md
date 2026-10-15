@@ -1,4 +1,4 @@
-# ATOM v0.1
+# ATOM v0.2
 
 **Install once. Work anywhere. Adapt to every project.**
 
@@ -6,9 +6,11 @@
 
 ATOM은 기존 AI coding CLI에서 사용하는 가벼운 Markdown agent 모음입니다. 사람이 제품 방향을 정하고 agent가 허용된 구현·검증·독립 검토를 수행합니다. 별도 runtime, 서버, 데이터베이스, plugin, `atom init`, 프로젝트 `.atom/` 설정은 없습니다.
 
+**Humans describe the goal. ATOM selects the right expertise.**
+
 ## 지원
 
-- OpenCode **2.0.19** 설치·native agent 검증 대상. Codex·Claude Code에는 설치 adapter를 추가하지 않습니다. 역할 본문을 제공한 정책 실험과 native 설치·위임 검증은 구분합니다.
+- OpenCode V2 대상(기존 2.0.19 검증 기록은 아래 참고). Codex·Claude Code에는 설치 adapter를 추가하지 않습니다. 역할 본문을 제공한 정책 실험과 native 설치·위임 검증은 구분합니다.
 - POSIX shell 기반 설치기. macOS에서 검증; Windows native shell은 지원하지 않습니다.
 - `opencode`와 기본 shell 도구, `sha256sum` 또는 `shasum`이 필요합니다. Python/Node/npm 의존성은 없습니다.
 - **Model-agnostic:** 모든 agent는 `model`을 생략합니다. 모델·provider·variant 선택은 OpenCode와 사용자만 관리하며, child agent는 OpenCode의 기본 상속을 따릅니다. ATOM은 모델을 선택·변경하거나 오류 시 자동 전환하지 않습니다.
@@ -23,28 +25,38 @@ ATOM은 기존 AI coding CLI에서 사용하는 가벼운 Markdown agent 모음�
 ./atom status
 ```
 
-`atom`을 어느 디렉터리에서나 실행하려면 checkout의 절대 경로를 shell의 `PATH`에 추가하세요. 배포 파일 `agents/`가 필요하므로 checkout을 유지합니다.
+`atom`을 어느 디렉터리에서나 실행하려면 checkout의 절대 경로를 shell의 `PATH`에 추가하세요. 배포 파일 `agents/`, `skills/`가 필요하므로 checkout을 유지합니다.
 
 ```sh
 export PATH="/absolute/path/to/atom:$PATH"
 atom install --ai opencode
 ```
 
-모든 설치 작업은 **전역이 기본이자 유일한 범위**입니다. `--global`과 프로젝트별 설치는 지원하지 않습니다. 대상은 `opencode debug paths config`로 발견한 디렉터리의 `agents/`입니다. OpenCode가 인식하는 `XDG_CONFIG_HOME`, `OPENCODE_CONFIG_DIR` override를 그대로 따릅니다.
+모든 설치 작업은 **전역이 기본이자 유일한 범위**입니다. `--global`과 프로젝트별 설치는 지원하지 않습니다. 대상은 `opencode debug paths config`로 발견한 디렉터리의 `agents/`와 `skills/atom-routing.md`입니다. OpenCode가 인식하는 `XDG_CONFIG_HOME`, `OPENCODE_CONFIG_DIR` override를 그대로 따릅니다. 기존 전역 `AGENTS.md`나 Build 설정을 수정하지 않습니다.
 
 새 agent가 보이지 않으면 OpenCode를 다시 열거나 native `opencode reload`를 사용하세요. 설치기가 service를 자동 재시작하거나 현재 session을 변경하지는 않습니다.
 
 ## 사용
 
-어느 프로젝트에서든 `opencode`를 열고 agent 목록에서 선택합니다. 기본 TUI 단축키는 `Ctrl+X` 다음 `A`, 순환은 `Shift+Tab`입니다. 사용자 keybind 설정에 따라 다를 수 있습니다.
+일반 Build 세션에서 자연어로 목표를 설명하세요. Native `atom-routing` Skill과 Agent description이 전문가 선택을 유도합니다. 별도 Router Agent는 없습니다. Skill 발견은 자동 실행을 보장하지 않으며, 선택은 현재 모델과 host permission에 의존하는 prompt 기반 동작입니다.
+
+| 자연어 요청 | 위임 대상 |
+| --- | --- |
+| 이 기능이 가능한지, 구현 전에 접근 방법을 검토해 줘 | Planner |
+| 기존 설정 화면을 분석하고 UX 개선 방향을 제안해 줘 | Designer |
+| 좋아, 그 설계대로 구현해 줘 | Developer → 독립 Reviewer |
+| 현재 변경 사항을 독립적으로 검토해 줘 | Reviewer |
+| 최종 검증하고 PR 초안을 준비해 줘. 생성은 하지 마 | QA |
+
+코드 설명·함수 이름 추천·작은 예제에는 위임이나 무거운 계획을 요구하지 않습니다. 사용자가 명시한 Agent 선택은 존중합니다. 기존 직접 선택도 유지됩니다: agent 목록, `Ctrl+X` 다음 `A`, `Shift+Tab`(사용자 keybind에 따라 다름).
 
 | Agent | 역할 | Mode |
 | --- | --- | --- |
-| `atom-planner` | 자연어 의도에 맞춘 Explore / Design / Plan / Deep Dive | `primary` |
-| `atom-designer` | 신규 UI/UX 설계, 기존 흐름·접근성·일관성 검토 | `primary` |
+| `atom-planner` | 자연어 의도에 맞춘 Explore / Design / Plan / Deep Dive | `all` |
+| `atom-designer` | 신규 UI/UX 설계, 기존 흐름·접근성·일관성 검토 | `all` |
 | `atom-developer` | 요청된 구현부터 PR까지 책임, 검증·독립 검토·수정·Insight | `all` |
 | `atom-reviewer` | 요약을 믿지 않고 실제 staged/unstaged diff·새 파일·요구사항 검토 | `all` |
-| `atom-qa` | 요청된 최종 검증부터 PR까지 책임, 범위 내 수정 전달·재검증 | `primary` |
+| `atom-qa` | 요청된 최종 검증부터 PR까지 책임, 범위 내 수정 전달·재검증 | `all` |
 
 ```sh
 opencode run --agent atom-planner "이 아이디어의 가능성만 간단히 검토해 줘"
@@ -57,6 +69,10 @@ opencode run --agent atom-reviewer "현재 변경을 요구사항과 대조해 �
 고정 workflow는 없습니다. 프로젝트의 stack·구조·컨벤션·`AGENTS.md`·skills·테스트·권한은 OpenCode의 native context를 사용합니다. Superpowers는 선택 사항이며 기존 skills를 설치·복제·덮어쓰지 않습니다. 이미 승인된 작업에 불필요한 재승인·commit·문서 생성 절차를 추가하지 않습니다.
 
 Developer는 foreground Reviewer 결과를 받은 뒤 blocking finding을 수정하고 필요한 검증·재검토를 수행합니다. **같은 작업 묶음당 최초 검토를 포함해 최대 3회 호출**하며 실패·불완전한 호출도 횟수에 포함합니다. 한도에 도달하면 미해결 문제를 보고하고 성공을 주장하지 않습니다.
+
+Build는 사용자 목표·승인 요구사항·acceptance criteria·이전 결정·제외 범위·사용자 변경·검증 및 미해결 문제를 child 호출 메시지로 전달하고, 결과를 같은 대화에 반영합니다. Child가 전체 부모 대화를 자동 상속한다고 가정하지 않습니다. 영구 Context 파일은 만들지 않습니다.
+
+Developer child가 **구조적 depth limit** 때문에 Reviewer를 중첩 호출할 수 없으면 실제 수정·검증 근거와 남은 검토 예산을 부모에 반환합니다. 부모 Build가 sibling Reviewer를 호출하고, 필요한 수정은 기존 Developer child를 재개해 처리합니다. 실패한 중첩 시도도 3회에 포함합니다. 이는 권한 거부의 대체 경로가 아닙니다. denied/pending 권한이면 부모·다른 도구로 재시도하지 않고 차단을 보고합니다.
 
 ATOM Insight는 대화 안의 간결한 Markdown입니다. 완료 보고서를 길게 만드는 대신 **변경된 동작과 중요한 설계 판단을 빠르게 이해**하도록 돕습니다. 설명 깊이는 변경 줄 수가 아니라 이해하기 어려운 이유로 선택합니다.
 
@@ -78,7 +94,7 @@ Insight 초안이 제공되면 Reviewer가 **기존 코드 검토 호출 안에�
 - Commit/Push 전 main/master·실제 remote-default가 아닌 작업 브랜치인지와 포함할 변경을 확인하고, 필요하면 기존 작업을 보존하며 작업 브랜치를 만듭니다. 외부 변경 전 repository·remote·push ref·PR base를 확인합니다. 기본 브랜치 직접 Push(`HEAD:main` 포함), Force Push, 이력 재작성·파괴적 명령·무관한 변경은 PR 요청만으로 승인되지 않습니다. **Merge는 사용자의 별도 명시적 결정**이 필요하며 auto-merge도 켜지 않습니다.
 - Jira 연동이 명시적으로 요청되지 않은 작업은 Jira를 변경하지 않습니다. GitHub helper 등은 기존 host/프로젝트 지침에 따라 사용하되 책임과 권한을 넘기거나 넓히지 않습니다. 실제 성공 응답의 URL만 생성된 PR로 보고합니다.
 
-일반 개발은 현재 디렉터리에서 진행하며 worktree는 실제 병렬·격리 필요가 있을 때만 사용자와 협의합니다. 별도 Router/Orchestrator나 새 Skill은 없습니다. 기존 TDD·검증·review Skill을 호환되는 범위에서 재사용하며, 승인된 작업에 Skill이 불필요한 Human Gate를 추가하지 않도록 합니다.
+일반 개발은 현재 디렉터리에서 진행하며 worktree는 실제 병렬·격리 필요가 있을 때만 사용자와 협의합니다. 별도 Router/Orchestrator는 없고 작은 native routing Skill 하나만 배포합니다. 기존 TDD·검증·review Skill을 호환되는 범위에서 재사용하며, 승인된 작업에 Skill이 불필요한 Human Gate를 추가하지 않도록 합니다.
 
 OpenCode는 native `subagent`와 agent mode/permission을 사용합니다. Codex·Claude Code에서는 해당 host가 실제 제공하는 독립 agent/session 기능을 사용하며 OpenCode frontmatter·tool을 그대로 지원한다고 가정하지 않습니다. 독립 실행이나 위임이 없으면 구체적인 handoff/blocker를 보고하고 가능한 검증만 계속합니다. 자신을 독립 Reviewer로 간주하거나 host denial을 다른 CLI/도구로 우회하지 않습니다.
 
@@ -104,7 +120,7 @@ atom uninstall --ai opencode
 
 ## 안전 경계와 제한
 
-기존 agents, skills, `AGENTS.md`, model/provider 설정, 전역 permissions, 다른 CLI 설정은 수정하지 않습니다. Agent permission에는 권한을 넓히는 `allow` 규칙이 없으며 advisory profiles의 `edit` denial 등 필요한 제한만 추가합니다.
+기존 사용자 agents, skills, `AGENTS.md`, model/provider 설정, 전역 permissions, 다른 CLI 설정은 수정하지 않습니다. ATOM이 소유한 다섯 Agent와 routing Skill만 checksum 정책에 따라 관리합니다. Agent permission에는 권한을 넓히는 `allow` 규칙이 없으며 advisory profiles의 `edit` denial 등 필요한 제한만 추가합니다.
 
 Prompt는 sandbox가 아닙니다. Shell·테스트·MCP는 외부 영향을 줄 수 있고 child agent는 자신의 권한을 사용합니다. Agent는 우회하지 않도록 지시되지만 실제 보안 경계는 host permission/policy입니다. 파괴적 작업·배포·범위 밖 변경·아직 승인되지 않은 외부 mutation은 별도 명시적 승인과 host 권한이 필요합니다. 명시적인 PR 생성 요청은 위 범위의 승인이지 host permission 우회가 아닙니다.
 
@@ -121,16 +137,20 @@ sh -n atom
 sh -n tests/installer.sh
 sh -n tests/opencode.sh
 sh -n tests/ownership.sh
+sh -n tests/routing.sh
 sh tests/installer.sh
 ```
 
 Filesystem suite는 가짜 OpenCode path probe와 격리된 임시 config만 사용합니다. 실제 사용자 config에는 접근하지 않습니다. Clean/repeated install, update, uninstall, dry-run, 충돌·수정 보존, 누락 복구, source/checksum 오류, 경로 override, symlink, rollback, lock, 다른 agent·skill·설정 보존을 검증합니다.
+
+`routing.sh`는 별도 임시 config에 배포본을 설치하고 일반 Build에서 Agent/Skill 이름 없는 자연어 요청을 실행합니다. Node는 격리된 vanilla JS 설정 fixture의 검증에만 필요하며 ATOM 설치 의존성이 아닙니다. A/B/D 읽기 전용, C 구현, E 검증·PR 준비(no-publish), F 단순 질문, G 같은 세션의 이전 결정 전달을 조사합니다. 실제 child/session/tool 로그와 diff를 보존합니다. 자동 guard와 별도로 **호출 메시지의 이전 결정·수정 주체·테스트 실행·독립 검토 순서·불필요한 승인 질문**을 로그에서 확인해야 합니다. 단순 child 존재나 저장 버튼 부재만으로 의미 검증 PASS를 선언하지 않습니다. 모델 오류 시 fallback 없이 중단하며 이후 모델 실험은 미실행으로 남깁니다.
 
 실제 OpenCode 통합 실험은 비용·시간이 들 수 있으므로 별도 opt-in입니다. 아래 `MODEL`에는 사용자가 사용할 수 있는 모델 ID를 지정합니다. 이 지정은 테스트 실행에만 적용되며 배포 agent나 사용자 설정에는 저장하지 않습니다. 새 CLI 세션이 현재 UI 대화의 모델을 상속한다고 가정하지 말고 재현 가능한 실험에는 모델을 명시하세요. 생략하면 OpenCode 기본 선택을 사용하고, 모델 오류 시 테스트가 실패할 뿐 자동 전환하지 않습니다.
 
 ```sh
 ATOM_TEST_MODEL='PROVIDER/MODEL' sh tests/opencode.sh
 ATOM_TEST_MODEL='PROVIDER/MODEL' sh tests/ownership.sh
+ATOM_TEST_MODEL='PROVIDER/MODEL' sh tests/routing.sh
 # 별도 선택적 source-prompt 정책 실험 (각 CLI 기본 모델 사용):
 ATOM_TEST_HOST=codex sh tests/ownership.sh
 ATOM_TEST_HOST=claude sh tests/ownership.sh
@@ -152,7 +172,7 @@ Insight 평가에는 기존 수정 사례의 간결한 최종 설명, 같은 기
 - Reviewer는 실제 diff·소스·테스트를 읽기 중심으로 조사했고 runtime 테스트는 Developer가 수행했습니다.
 - Designer → QA 전환 시 model/provider/variant 유지, Reviewer child의 native 모델 상속 확인. 테스트에만 단일 model을 지정했으며 배포 설정에는 반영하지 않았습니다.
 
-### 현재 배포본 재검증 (2026-10-14)
+### v0.1 배포본 재검증 (2026-10-14)
 
 - Filesystem suite **31개 통과**. 소유권 변경은 Agent 본문과 README, opt-in 테스트에 한정하며 설치기·기존 Skill은 변경하지 않습니다.
 - 최초 모델 미지정 호출은 `github-copilot/gemini-4-argon`을 선택해 `provider.invalid-request` (`The requested model is not supported`, HTTP 400)로 실패했습니다. 새 CLI 테스트 세션의 기본 선택은 현재 UI 대화의 선택 모델과 달랐습니다. 모델 목록 등록은 해당 계정에서의 실제 호출 성공을 보장하지 않습니다.

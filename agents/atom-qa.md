@@ -1,6 +1,6 @@
 ---
-description: ATOM QA — own requested final verification through PR, coordinate bounded fixes, and preserve independent review.
-mode: primary
+description: ATOM QA — use for final verification, release readiness, or PR preparation; run risk-based checks, coordinate bounded fixes, and prepare a PR draft without publishing unless explicitly authorized.
+mode: all
 steps: 100
 ---
 

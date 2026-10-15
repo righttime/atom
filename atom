@@ -2,8 +2,8 @@
 # ATOM's global OpenCode installer. No model management or project configuration.
 set -eu
 umask 077
-VERSION=0.1.0
-NAMES='atom-planner.md atom-designer.md atom-developer.md atom-reviewer.md atom-qa.md'
+VERSION=0.2.0
+NAMES='atom-planner.md atom-designer.md atom-developer.md atom-reviewer.md atom-qa.md atom-routing.md'
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
 COMMAND=${1:-help}
 [ "$#" -eq 0 ] || shift
@@ -27,7 +27,7 @@ while [ "$#" -gt 0 ]; do
     *) die "Unknown option: $1" ;;
   esac
 done
-[ "$AI" = opencode ] || die 'Only --ai opencode is supported in v0.1'
+[ "$AI" = opencode ] || die 'Only --ai opencode is supported in v0.2'
 command -v opencode >/dev/null 2>&1 || die 'OpenCode is required (opencode must be on PATH)'
 CONFIG=$(opencode debug paths config) || die 'OpenCode configuration path discovery failed'
 case "$CONFIG" in /*) ;; *) die 'OpenCode must return an absolute configuration path' ;; esac
@@ -47,9 +47,18 @@ safe_directory() {
 }
 safe_directory "$CONFIG"
 DEST=$CONFIG/agents
+SKILLS=$CONFIG/skills
+# Keep v0.1 agent manifest keys compatible; routing is a flat native skill.
+target() {
+  case "$1" in atom-routing.md) printf '%s/%s\n' "$SKILLS" "$1" ;; *) printf '%s/%s\n' "$DEST" "$1" ;; esac
+}
+source_file() {
+  case "$1" in atom-routing.md) printf '%s/skills/%s\n' "$ROOT" "$1" ;; *) printf '%s/agents/%s\n' "$ROOT" "$1" ;; esac
+}
 MANIFEST=$CONFIG/.atom-manifest
 LOCK=$CONFIG/.atom-lock
 safe_directory "$DEST"
+safe_directory "$SKILLS"
 [ ! -L "$MANIFEST" ] || die 'Manifest symlink: ownership cannot be established'
 if [ -e "$MANIFEST" ] && [ ! -f "$MANIFEST" ]; then die 'Manifest is not a regular file'; fi
 if command -v sha256sum >/dev/null 2>&1; then
@@ -68,17 +77,17 @@ hash() {
   printf '%s\n' "$digest"
 }
 
-# Never source the manifest. Accept only this format and the five fixed basenames.
+# Never source the manifest. Accept only this format and fixed ATOM basenames.
 if [ -f "$MANIFEST" ]; then
   awk '
     NR==1 { if (NF!=2 || $1!="ATOM1" || $2 !~ /^[a-zA-Z0-9.-]+$/) exit 1; next }
-    { if (NF!=2 || $1 !~ /^atom-(planner|designer|developer|reviewer|qa)\.md$/ || seen[$1]++ || length($2)!=64 || $2 ~ /[^0-9a-f]/) exit 1 }
+    { if (NF!=2 || $1 !~ /^atom-(planner|designer|developer|reviewer|qa|routing)\.md$/ || seen[$1]++ || length($2)!=64 || $2 ~ /[^0-9a-f]/) exit 1 }
     END { if (NR<1) exit 1 }
   ' "$MANIFEST" || die 'Invalid manifest: preserving it because ownership cannot be established'
 fi
 owned_hash() { if [ -f "$MANIFEST" ]; then awk -v name="$1" '$1==name {print $2}' "$MANIFEST"; fi; }
 state() {
-  file=$DEST/$1
+  file=$(target "$1")
   previous=$(owned_hash "$1")
   if [ -L "$file" ]; then printf 'conflict\n'
   elif [ ! -e "$file" ]; then printf 'missing\n'
@@ -90,6 +99,7 @@ state() {
   fi
 }
 printf 'AI CLI: %s\nInstallation directory: %s\nDistribution version: %s\n' "$AI" "$DEST" "$VERSION"
+printf 'Routing skill: %s/atom-routing.md\n' "$SKILLS"
 if [ -f "$MANIFEST" ]; then
   printf 'Installation version: %s\n' "$(awk 'NR==1 {print $2}' "$MANIFEST")"
 else
@@ -109,9 +119,9 @@ if [ "$COMMAND" = status ]; then
 fi
 
 if [ "$COMMAND" != uninstall ]; then
-  [ ! -L "$ROOT/agents" ] || die 'Unsafe symlink source directory'
+  [ ! -L "$ROOT/agents" ] && [ ! -L "$ROOT/skills" ] || die 'Unsafe symlink source directory'
   for name in $NAMES; do
-    source=$ROOT/agents/$name
+    source=$(source_file "$name")
     [ -f "$source" ] && [ ! -L "$source" ] || die "Missing or unsafe source file: $source"
   done
 fi
@@ -133,7 +143,7 @@ if [ "$DRY" -eq 1 ]; then
     case "$(state "$name")" in
       owned)
         if [ "$COMMAND" = uninstall ]; then printf 'Would remove %s\n' "$name"
-        elif cmp -s "$ROOT/agents/$name" "$DEST/$name"; then printf 'Unchanged %s\n' "$name"
+        elif cmp -s "$(source_file "$name")" "$(target "$name")"; then printf 'Unchanged %s\n' "$name"
         else printf 'Would update %s\n' "$name"; fi ;;
       missing) [ "$COMMAND" = uninstall ] || printf 'Would install %s\n' "$name" ;;
     esac
@@ -162,13 +172,14 @@ cleanup() {
     if [ "$DONE" -eq 0 ]; then
       # Roll back only paths we touched, never skipped or unrelated files.
       for name in $NAMES; do
+        file=$(target "$name")
         if [ -f "$STAGE/touched-$name" ]; then
           if [ -f "$STAGE/old-$name" ]; then
-            if [ ! -L "$DEST/$name" ] && { [ ! -e "$DEST/$name" ] || [ -f "$DEST/$name" ]; } && /bin/mv -f "$STAGE/old-$name" "$DEST/$name"; then :
+            if [ ! -L "$file" ] && { [ ! -e "$file" ] || [ -f "$file" ]; } && /bin/mv -f "$STAGE/old-$name" "$file"; then :
             else recovery=1; printf 'Rollback failed for %s; backup: %s\n' "$name" "$STAGE/old-$name" >&2; fi
           else
-            if [ ! -L "$DEST/$name" ] && { [ ! -e "$DEST/$name" ] || [ -f "$DEST/$name" ]; } && rm -f "$DEST/$name"; then :
-            else recovery=1; printf 'Rollback failed for newly installed %s; inspect %s\n' "$name" "$DEST/$name" >&2; fi
+            if [ ! -L "$file" ] && { [ ! -e "$file" ] || [ -f "$file" ]; } && rm -f "$file"; then :
+            else recovery=1; printf 'Rollback failed for newly installed %s; inspect %s\n' "$name" "$file" >&2; fi
           fi
         fi
       done
@@ -193,24 +204,25 @@ cleanup() {
 trap cleanup EXIT
 trap 'exit 1' HUP INT TERM
 STAGE=$(mktemp -d "$CONFIG/.atom-stage.XXXXXX")
-mkdir -p "$DEST"
+mkdir -p "$DEST" "$SKILLS"
 if [ -f "$MANIFEST" ]; then cp -p "$MANIFEST" "$STAGE/old-manifest"; HAD_MANIFEST=1; fi
 
 # Prepare complete new contents and backups before the first mutation.
 printf 'ATOM1 %s\n' "$VERSION" > "$STAGE/manifest"
 for name in $NAMES; do
+  file=$(target "$name")
   current=$(state "$name")
   case "$current" in
     owned)
-      cp -p "$DEST/$name" "$STAGE/old-$name"
+      cp -p "$file" "$STAGE/old-$name"
       if [ "$COMMAND" != uninstall ]; then
-        cp "$ROOT/agents/$name" "$STAGE/new-$name"
+        cp "$(source_file "$name")" "$STAGE/new-$name"
         new_hash=$(hash "$STAGE/new-$name") || die "Cannot checksum source: $name"
         printf '%s %s\n' "$name" "$new_hash" >> "$STAGE/manifest"
       fi ;;
     missing)
       if [ "$COMMAND" != uninstall ]; then
-        cp "$ROOT/agents/$name" "$STAGE/new-$name"
+        cp "$(source_file "$name")" "$STAGE/new-$name"
         new_hash=$(hash "$STAGE/new-$name") || die "Cannot checksum source: $name"
         printf '%s %s\n' "$name" "$new_hash" >> "$STAGE/manifest"
       fi ;;
@@ -218,22 +230,23 @@ for name in $NAMES; do
   esac
 done
 for name in $NAMES; do
+  file=$(target "$name")
   if [ -f "$STAGE/new-$name" ]; then
-    if [ -f "$STAGE/old-$name" ] && cmp -s "$STAGE/new-$name" "$DEST/$name"; then printf 'Unchanged %s\n' "$name"; continue; fi
+    if [ -f "$STAGE/old-$name" ] && cmp -s "$STAGE/new-$name" "$file"; then printf 'Unchanged %s\n' "$name"; continue; fi
     # Detect ordinary edits made since preparation. No shell installer is a sandbox
     # against a malicious process changing paths between checks and rename.
     if [ -f "$STAGE/old-$name" ]; then
-      [ ! -L "$DEST/$name" ] && cmp -s "$STAGE/old-$name" "$DEST/$name" || die "Target changed during operation: $name"
+      [ ! -L "$file" ] && cmp -s "$STAGE/old-$name" "$file" || die "Target changed during operation: $name"
     else
-      [ ! -e "$DEST/$name" ] && [ ! -L "$DEST/$name" ] || die "Target appeared during operation: $name"
+      [ ! -e "$file" ] && [ ! -L "$file" ] || die "Target appeared during operation: $name"
     fi
     : > "$STAGE/touched-$name"
-    mv "$STAGE/new-$name" "$DEST/$name"
+    mv "$STAGE/new-$name" "$file"
     if [ -f "$STAGE/old-$name" ]; then printf 'Updated %s\n' "$name"; else printf 'Installed %s\n' "$name"; fi
   elif [ "$COMMAND" = uninstall ] && [ -f "$STAGE/old-$name" ]; then
-    [ ! -L "$DEST/$name" ] && cmp -s "$STAGE/old-$name" "$DEST/$name" || die "Target changed during operation: $name"
+    [ ! -L "$file" ] && cmp -s "$STAGE/old-$name" "$file" || die "Target changed during operation: $name"
     : > "$STAGE/touched-$name"
-    rm "$DEST/$name"
+    rm "$file"
     printf 'Removed %s\n' "$name"
   fi
 done

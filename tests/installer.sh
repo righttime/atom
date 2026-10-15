@@ -5,7 +5,7 @@ ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
 TMP=$(mktemp -d "${TMPDIR:-/tmp}/atom-installer-test.XXXXXX")
 TMP=$(CDPATH= cd -- "$TMP" && pwd -P)
 trap 'rm -rf "$TMP"' EXIT HUP INT TERM
-mkdir -p "$TMP/bin" "$TMP/distribution/agents"
+mkdir -p "$TMP/bin" "$TMP/distribution/agents" "$TMP/distribution/skills"
 cat > "$TMP/bin/opencode" <<'EOF'
 #!/bin/sh
 if [ "$*" = 'debug paths config' ]; then
@@ -18,6 +18,7 @@ chmod +x "$TMP/bin/opencode"
 export PATH="$TMP/bin:$PATH"
 cp "$ROOT/atom" "$TMP/distribution/atom"
 cp "$ROOT"/agents/atom-*.md "$TMP/distribution/agents/"
+[ ! -f "$ROOT/skills/atom-routing.md" ] || cp "$ROOT/skills/atom-routing.md" "$TMP/distribution/skills/"
 CLI="$TMP/distribution/atom"
 export TEST_CONFIG="$TMP/config with spaces"
 passed=0
@@ -42,6 +43,13 @@ for name in planner designer developer reviewer qa; do
 done
 [ -f "$TEST_CONFIG/.atom-manifest" ]
 pass 'clean installation of all five agents'
+[ -f "$TEST_CONFIG/skills/atom-routing.md" ] || { echo 'Missing installed native routing skill' >&2; exit 1; }
+cmp "$TMP/distribution/skills/atom-routing.md" "$TEST_CONFIG/skills/atom-routing.md"
+grep -q '^atom-routing.md ' "$TEST_CONFIG/.atom-manifest"
+for name in planner designer developer reviewer qa; do
+  grep -q '^mode: all$' "$TEST_CONFIG/agents/atom-$name.md"
+done
+pass 'routing skill is owned and all five agents support direct and child selection'
 
 snapshot > "$TMP/before"
 run install --ai opencode
@@ -79,8 +87,8 @@ cmp "$TMP/custom-reviewer" "$TEST_CONFIG/agents/atom-reviewer.md"
 pass 'update preserves user modifications'
 run status
 contains 'Modified.*atom-reviewer'
-contains 'Distribution version: 0.1.0'
-contains 'Installation version: 0.1.0'
+contains 'Distribution version: 0.2.0'
+contains 'Installation version: 0.2.0'
 pass 'status identifies modified owned files and version'
 
 rm "$TEST_CONFIG/agents/atom-developer.md"
@@ -98,6 +106,7 @@ contains 'Would remove'
 pass 'uninstall dry-run preserves every file'
 fails uninstall --ai opencode
 [ ! -e "$TEST_CONFIG/agents/atom-planner.md" ]
+[ ! -e "$TEST_CONFIG/skills/atom-routing.md" ]
 cmp "$TMP/custom-reviewer" "$TEST_CONFIG/agents/atom-reviewer.md"
 cmp "$TMP/user-config" "$TEST_CONFIG/opencode.json"
 cmp "$TMP/user-instructions" "$TEST_CONFIG/AGENTS.md"
@@ -293,6 +302,62 @@ fails install --ai opencode
 [ -d "$TEST_CONFIG/.atom-lock" ]
 [ ! -e "$TEST_CONFIG/agents/atom-planner.md" ]
 pass 'concurrent or stale lock is not removed'
+
+export TEST_CONFIG="$TMP/legacy-upgrade"
+run install
+# A v0.1 manifest owns only the five agents. Update must add the new skill.
+grep -v '^atom-routing.md ' "$TEST_CONFIG/.atom-manifest" | sed '1s/0.2.0/0.1.0/' > "$TMP/legacy-manifest"
+mv "$TMP/legacy-manifest" "$TEST_CONFIG/.atom-manifest"
+rm "$TEST_CONFIG/skills/atom-routing.md"
+run update
+cmp "$TMP/distribution/skills/atom-routing.md" "$TEST_CONFIG/skills/atom-routing.md"
+pass 'legacy five-agent manifest upgrades with owned routing skill'
+printf '\nDistribution routing update\n' >> "$TMP/distribution/skills/atom-routing.md"
+run update
+cmp "$TMP/distribution/skills/atom-routing.md" "$TEST_CONFIG/skills/atom-routing.md"
+pass 'routing skill update replaces only the unchanged owned version'
+printf '\nUser routing customization\n' >> "$TEST_CONFIG/skills/atom-routing.md"
+cp "$TEST_CONFIG/skills/atom-routing.md" "$TMP/custom-routing"
+fails update
+fails uninstall
+cmp "$TMP/custom-routing" "$TEST_CONFIG/skills/atom-routing.md"
+grep -q '^atom-routing.md ' "$TEST_CONFIG/.atom-manifest"
+pass 'modified routing skill and ownership survive update and uninstall'
+
+export TEST_CONFIG="$TMP/skill-conflict"
+mkdir -p "$TEST_CONFIG/skills"
+printf 'User skill\n' > "$TEST_CONFIG/skills/atom-routing.md"
+snapshot > "$TMP/before"
+fails install
+snapshot > "$TMP/after"
+cmp "$TMP/before" "$TMP/after"
+pass 'unowned routing skill aborts installation before agent writes'
+
+export TEST_CONFIG="$TMP/skill-symlink"
+mkdir -p "$TEST_CONFIG"
+ln -s "$TMP/outside" "$TEST_CONFIG/skills"
+fails install
+[ ! -e "$TEST_CONFIG/agents" ]
+[ ! -e "$TMP/outside/atom-routing.md" ]
+pass 'skill-directory symlink rejects installation before writes'
+
+export TEST_CONFIG="$TMP/skill-rollback"
+cat > "$TMP/bin/mv" <<'EOF'
+#!/bin/sh
+for arg do
+  case "$arg" in */skills/atom-routing.md) exit 1 ;; esac
+done
+exec /bin/mv "$@"
+EOF
+chmod +x "$TMP/bin/mv"
+fails install
+for name in planner designer developer reviewer qa; do
+  [ ! -e "$TEST_CONFIG/agents/atom-$name.md" ]
+done
+[ ! -e "$TEST_CONFIG/skills/atom-routing.md" ]
+[ ! -e "$TEST_CONFIG/.atom-manifest" ]
+rm "$TMP/bin/mv"
+pass 'routing skill write failure rolls back all five agent writes'
 
 fails install --ai codex
 fails install --global

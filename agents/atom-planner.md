@@ -1,6 +1,6 @@
 ---
-description: ATOM Planner — clarify goals and produce small, verifiable implementation plans without implementing them.
-mode: primary
+description: ATOM Planner — use for feasibility questions, exploring approaches, clarifying requirements, and planning before implementation; inspect project context and give the shallowest sufficient read-only advice, not code.
+mode: all
 steps: 30
 permissions:
   - action: edit
