@@ -57,7 +57,7 @@ atom install --ai opencode
 | --- | --- | --- |
 | `atom-planner` | 자연어 의도에 맞춘 Explore / Design / Plan / Deep Dive | `all` |
 | `atom-designer` | 신규 UI/UX 설계, 기존 흐름·접근성·일관성 검토 | `all` |
-| `atom-developer` | 요청된 구현부터 PR까지 책임, 검증·독립 검토·수정·Insight | `all` |
+| `atom-developer` | 요청된 구현부터 PR까지 책임, 검증·독립 검토·수정·요청 시 Insight 발표 | `all` |
 | `atom-reviewer` | 요약을 믿지 않고 실제 staged/unstaged diff·새 파일·요구사항 검토 | `all` |
 | `atom-qa` | 검증·결과보고, 명시 PR 요청 시 publish; blocking은 보고, 수정은 별도 승인 | `all` |
 
@@ -77,15 +77,18 @@ Build는 사용자 목표·승인 요구사항·acceptance criteria·이전 결�
 
 Developer child가 **구조적 depth limit** 때문에 Reviewer를 중첩 호출할 수 없으면 실제 수정·검증 근거와 남은 검토 예산을 부모에 반환합니다. 부모 Build가 sibling Reviewer를 호출하고, 필요한 수정은 기존 Developer child를 재개해 처리합니다. 실패한 중첩 시도도 3회에 포함합니다. 이는 권한 거부의 대체 경로가 아닙니다. denied/pending 권한이면 부모·다른 도구로 재시도하지 않고 차단을 보고합니다.
 
-ATOM Insight는 대화 안의 간결한 Markdown입니다. 완료 보고서를 길게 만드는 대신 **변경된 동작과 중요한 설계 판단을 빠르게 이해**하도록 돕습니다. 설명 깊이는 변경 줄 수가 아니라 이해하기 어려운 이유로 선택합니다.
+일반 Developer 완료 보고는 **변경사항·실제 검증 결과와 한계·Reviewer 판정/횟수·Commit/PR 상태**만 짧게 전달합니다. Insight 설명·HTML·영구 보고서를 자동 생성하지 않습니다.
 
-- 사소한 변경: 몇 줄의 Markdown만 제공합니다.
-- 동작/API 변경: 근거가 있는 Before/After와 대표 입력·출력.
-- 계층 간 흐름: 짧은 데이터 흐름 설명, 필요한 경우 작은 Mermaid와 텍스트 대안.
-- 알고리즘·상태 전이: 중요한 규칙과 입력 하나의 단계 추적.
-- 실제 소스에서 확인한 사실, 실행한 검증 결과, 실행하지 않은 개념 예시를 구분합니다. Reviewer `PASS`는 해당 범위의 코드 검토이지 독립 runtime 테스트나 무결함 보장이 아닙니다.
+**ATOM Insight는 명시적으로 요청할 때만 만드는 시각적 발표**입니다. 예를 들어 “이번 구현 내용을 발표해 보세요!”, “방금 수정한 기능을 시각적으로 설명해 줘.”, “이번 변경을 개발자에게 발표해 줘.”처럼 요청하세요. 자연어 의도로 Developer에 연결하며 정확한 문구를 요구하지 않습니다. Insight 기능 구현 요청 자체는 발표 생성 요청이 아닙니다.
 
-Insight 초안이 제공되면 Reviewer가 **기존 코드 검토 호출 안에서** 핵심 설명도 소스와 대조합니다. 별도 Insight Reviewer 호출이나 필수 초안 파일은 없습니다. 기본적으로 영구 결과물을 만들지 않고, 필요한 설계 결정만 기존 유지 문서에 보존합니다. Git 범위로 설명을 재생성할 수 있지만 당시 테스트 결과·화면·기록하지 않은 의도는 이력만으로 복원하지 않습니다. 전용 Insight Agent/Skill/DB/Runtime은 없습니다.
+- 실제 변경 코드·테스트와 Git 이력/diff를 읽고 대상 revision/range·미커밋 변경 범위를 밝힙니다. 무관한 사용자 변경은 제외합니다.
+- UI는 근거 있는 Before/After·사용자 흐름, 알고리즘은 단계별 값·상태 변화, 아키텍처는 컴포넌트·데이터 흐름을 시각화합니다. 복잡한 로직은 필요한 경우 인터랙티브 HTML로 설명합니다.
+- 성능 그래프는 조건·단위·명령을 밝힌 실제 측정값만 사용합니다. 측정하지 않았다면 미측정으로 표시하고 수치·개선 효과를 만들지 않습니다. 실제 화면이 없으면 소스 기반 개념도를 쓰되 스크린샷처럼 주장하지 않습니다.
+- **소스 확인 사실 / 실제 테스트·측정 결과 / 실행하지 않은 개념 예시**를 구분합니다. Git만으로 당시 실행 결과·화면·기록하지 않은 의도를 복원하지 않습니다. Reviewer `PASS`는 코드 검토이지 runtime·시각 검증이 아닙니다.
+- 긴 Markdown 대신 가능하면 CSS/SVG 등을 내장한 **단일 HTML**을 브라우저에서 보도록 제공합니다. 기존 `slides`·디자인 Skill을 호환 범위에서 활용할 수 있지만 새 runtime·별도 서버·의존성 설치를 요구하지 않습니다. 도구/권한 제약이면 한계를 밝히고 짧은 대화 설명으로 대체합니다.
+- 산출물은 기본 일회성으로 저장소 밖 host가 허용한 고유 임시 경로에 생성하며, 영구보존 요청 없이는 Git에 넣지 않습니다. 실제 HTML 절대 경로와 여는 방법을 전달하고, 브라우저 검증을 하지 못했다면 **브라우저 검증 미수행**을 명시합니다.
+
+Insight는 기존 Developer와 `atom-routing`에 포함되어 설치·업데이트·제거 시 기존 소유권/checksum 정책으로 관리합니다. 별도 Insight Agent/Skill/DB/Runtime은 없습니다. 발표만 요청하면 코드 수정·Commit/Push/PR·추가 Reviewer 호출을 승인하지 않습니다. 구현 검토 중 초안이 이미 제공됐다면 **기존 코드 검토 호출 안에서** 소스와 대조하며 별도 검토나 필수 초안 파일을 요구하지 않습니다.
 
 ### PR 책임과 승인
 
@@ -165,13 +168,13 @@ ATOM_TEST_HOST=codex sh tests/ownership.sh
 ATOM_TEST_HOST=claude sh tests/ownership.sh
 ```
 
-통합 suite는 JSON 근거 검사용 `jq`가 필요합니다(설치기에는 필요 없음). 임시 XDG 전역 config에 설치하고 서로 다른 두 프로젝트에서 다섯 agent를 실제 호출합니다. Child의 최종 assistant verdict 순서에서 `CHANGES_REQUIRED → PASS`를 확인하고 모델 상속, 사용자 파일 보존, Primary 전환 시 model 유지, 제거를 검사합니다. 상세 근거는 출력된 임시 경로의 로그로 확인할 수 있습니다. Git fixture는 commit 없이 staged draft를 사용하며 ATOM-specific 프로젝트 설정을 만들지 않습니다. 로그는 확인할 수 있도록 보존합니다.
+통합 suite는 JSON 근거 검사용 `jq`가 필요합니다(설치기에는 필요 없음). 임시 XDG 전역 config에 설치하고 여러 프로젝트에서 다섯 agent를 실제 호출합니다. Child의 최종 assistant verdict 순서에서 `CHANGES_REQUIRED → PASS`를 확인하고 모델 상속, 사용자 파일 보존, Primary 전환 시 model 유지, 제거를 검사합니다. 상세 근거는 출력된 임시 경로의 로그로 확인할 수 있습니다. 구현 fixture는 commit 없이 staged draft를, 발표 fixture는 로컬 이력과 미커밋 변경을 사용하며 remote나 ATOM-specific 프로젝트 설정은 만들지 않습니다. 로그는 확인할 수 있도록 보존합니다.
 
 `policy.sh`는 A 구현→local Commit, B 구현+PR→publish, C 검증→검사·보고만, D 검증+PR→blocking 없을 때 publish, E PR 준비→no publish, F Jira 제외의 **prompt 문자열/static guard**를 검사합니다. `policy-mock.sh`는 기존 Claude 정책 전용 호출 경로를 가짜 CLI/JSON으로 실행하고 잘못된 A–F 응답의 거절을 확인합니다. 모델 호출·Claude 실제 준수·native 위임·host 권한 집행·실제 publish 검증은 아닙니다. Claude 설치 adapter는 없습니다.
 
 `ownership.sh`는 Developer/QA의 승인·소유권 정책 응답을 검사하고, OpenCode에서는 별도 로컬 Git fixture의 계산 결과·사용자 메모 보존·범위 내 Commit·Developer child 존재·Reviewer 최종 verdict를 자동 확인합니다. QA fixture는 **수정·Developer 위임을 별도로 명시 승인한 예외**이며 검증만으로 수정이 승인된다는 뜻이 아닙니다. **수정 주체·agent의 실제 검사 실행·최종 변경의 검토 순서는 자동 판정하지 않습니다.** 생성된 `ownership-evaluation.md`에 따라 parent/child tool 기록과 최종 diff를 대조하기 전에는 native 역할 전달 성공을 주장하지 않습니다. remote를 설정하지 않고 실제 Push/PR/Merge/Jira 변경은 하지 않습니다. 정책 JSON 응답은 자체 진술이지 원격 동작의 실행 근거가 아닙니다. Codex/Claude 선택은 역할 본문을 명시적으로 전달하는 **정책 전용 실험**이며 native 설치·위임·Commit 검증은 생략합니다. 모델 오류/host 차단은 실패로 남기고 자동 fallback이나 `--auto`는 사용하지 않습니다. Prompt 계약이 모든 모델에서 보장된다는 뜻은 아닙니다. 아래 과거 검증 기록은 당시 정책 결과이며 이 변경의 modeled 행동 재검증이 아닙니다.
 
-Insight 평가에는 기존 수정 사례의 간결한 최종 설명, 같은 기존 Reviewer 호출에 전달한 거짓 설명·검증 주장, 세 번째 프로젝트의 할인 계산 단계 설명을 사용합니다. 출력된 임시 경로의 `insight-evaluation.md`에 작은 의미 평가 기준과 이해 확인 질문을 남깁니다. 길이·불필요한 시각화·fixture 보존 guardrail은 자동 검사하지만 **설명 정확성·유용성은 소스/실행 근거와 대조해 평가**합니다. Guardrail 통과만으로 의미 평가 PASS를 주장하지 않습니다. 테스트 로그·평가 자료는 임시 실험 근거이며 설치 패키지나 프로젝트 문서로 배포하지 않습니다.
+Insight 평가에는 일반 수정 사례의 짧은 완료 보고(자동 발표 없음), 같은 기존 Reviewer 호출에 전달한 거짓 설명·검증 주장, 세 번째 프로젝트에서 명시적으로 요청한 할인 계산 변경의 HTML 발표를 사용합니다. 출력된 임시 경로의 `insight-evaluation.md`에 의미 평가 기준과 이해 확인 질문을 남깁니다. 길이·HTML 존재/반환 경로·fixture 보존 guardrail은 자동 검사하지만 **설명 정확성·시각화 유용성·근거 구분·여는 방법/브라우저 미검증 고지는 소스와 tool 기록에 대조해 평가**합니다. Guardrail 통과만으로 의미 평가나 브라우저 검증 PASS를 주장하지 않습니다. 실제 모델 호출은 opt-in이며 테스트 로그·HTML·평가 자료는 임시 실험 근거로만 보존하고 설치 패키지나 프로젝트 문서로 배포하지 않습니다.
 
 ### 기존 검증 기록
 

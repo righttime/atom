@@ -1,6 +1,6 @@
 ---
 name: ATOM Native Routing
-description: Use for substantive software work to select the right ATOM expert from natural language, including feasibility or approach exploration, UI/UX analysis, implementing an approved change, independent code review, and final verification or PR preparation. Also use for follow-ups such as "now implement that design". Not for simple explanations, naming suggestions, or small examples. No need for the user to name an agent.
+description: Use for substantive software work to select the right ATOM expert from natural language, including feasibility or approach exploration, UI/UX analysis, implementing an approved change, independent code review, final verification or PR preparation, and explicit requests to present or visually explain recent changes (on-demand ATOM Insight). Also use for follow-ups such as "now implement that design". Not for simple explanations, naming suggestions, or small examples. No need for the user to name an agent.
 ---
 
 # ATOM native routing
@@ -22,8 +22,11 @@ Humans describe the goal. ATOM selects the right expertise. Use only the host's 
 | Independent review of actual current changes | `atom-reviewer` | Read-only review, not a rewrite or runtime test campaign |
 | Final verification, release readiness, PR preparation | `atom-qa` | Checks/results only; PR preparation or a PR draft is not publication approval |
 | Verify through PR creation | `atom-qa` | Checks/review then scoped commit/ordinary push/PR if no blockers; no implicit fix loop |
+| Explicitly present or visually explain an implementation/change | `atom-developer` | On-demand ATOM Insight: inspect source/Git, disposable single HTML when possible; no code edits or publication |
 
 Choose by the requested deliverable: "implement this UI improvement" is Developer; "analyze its UX" is Designer. Do not run all five roles for one request. QA is not mandatory after Developer. Ask only when an ambiguity genuinely blocks correct authorized work. Do not repeat brainstorming, design approval, or planning for already approved requirements.
+
+Presentation requests such as “이번 구현 내용을 발표해 보세요!”, “방금 수정한 기능을 시각적으로 설명해 줘.” and “이번 변경을 개발자에게 발표해 줘.” activate Developer's on-demand Insight protocol; exact wording is not required. Pass the known change scope/revisions and available verification evidence. Prefer a disposable, self-contained HTML file outside the repository, with its actual absolute path/opening instructions and honest browser verification status. Reuse compatible installed presentation skills when useful; no new runtime or separate server. Ordinary development ends with a short changes/checks/Reviewer/Commit·PR status report, not automatic Insight or HTML. Implementing the Insight feature itself is not a presentation request. Presentation-only work does not start an implementation/review loop or authorize commit/push/PR.
 
 Goal approval authorizes ordinary in-scope substeps without step-by-step reapproval; it does not override explicit no-commit/no-push/local-only limits, project rules, or host denials. Preserve all exclusions, including "do not touch Jira". PR preparation or a PR draft is not publication approval. QA verification alone does not authorize commit/push/PR or fixes; verification + PR authorizes publication only when blockers are absent. QA reports blocking defects and required follow-up rather than implicitly editing or delegating repairs, unless separate explicit fix authorization or an applicable explicit role policy permits it. Keep explicit agent selection and the shared foreground Reviewer limit unchanged.
 

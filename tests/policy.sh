@@ -25,6 +25,20 @@ for file in agents/atom-developer.md agents/atom-qa.md; do
 done
 has skills/atom-routing.md 'including "do not touch Jira"'
 printf 'PASS static F: Jira exclusions and explicit delivery limits survive routing\n'
+has agents/atom-developer.md '## Default completion report'
+has agents/atom-developer.md 'Generate Insight only when the user explicitly asks'
+has agents/atom-developer.md 'A request to implement the Insight feature is not a request to generate a presentation'
+has skills/atom-routing.md '| Explicitly present or visually explain an implementation/change | `atom-developer` |'
+has agents/atom-developer.md 'relevant Git history/diff'
+has agents/atom-developer.md '**source-confirmed facts**'
+has agents/atom-developer.md '**actual test/measurement results**'
+has agents/atom-developer.md '**conceptual examples not executed**'
+has agents/atom-developer.md 'comparison graphs only from actual measurements'
+has agents/atom-developer.md 'outside the repository'
+has agents/atom-developer.md 'actual absolute HTML path'
+has agents/atom-developer.md 'explicitly say when it was not performed or was blocked'
+has agents/atom-developer.md 'presentation-only request does not authorize'
+printf 'PASS static on-demand Insight trigger, evidence, temporary artifact and delivery contract (not runtime behavior)\n'
 for file in "$ROOT"/agents/*.md; do
   if sed -n '1,/^$/p' "$file" | grep -Eq '^(model:|[[:space:]]*allow:)'; then
     echo 'FAIL unexpected model/permission expansion' >&2; exit 1

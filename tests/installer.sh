@@ -67,6 +67,8 @@ cp "$TEST_CONFIG/opencode.json" "$TMP/user-config"
 cp "$TEST_CONFIG/AGENTS.md" "$TMP/user-instructions"
 
 printf '\nDistribution update\n' >> "$TMP/distribution/agents/atom-planner.md"
+printf '\nInsight protocol update\n' >> "$TMP/distribution/agents/atom-developer.md"
+printf '\nInsight routing update\n' >> "$TMP/distribution/skills/atom-routing.md"
 snapshot > "$TMP/before"
 run update --ai opencode --dry-run
 snapshot > "$TMP/after"
@@ -75,8 +77,10 @@ contains 'Would update'
 pass 'update dry-run is read-only'
 run update --ai opencode
 cmp "$TMP/distribution/agents/atom-planner.md" "$TEST_CONFIG/agents/atom-planner.md"
+cmp "$TMP/distribution/agents/atom-developer.md" "$TEST_CONFIG/agents/atom-developer.md"
+cmp "$TMP/distribution/skills/atom-routing.md" "$TEST_CONFIG/skills/atom-routing.md"
 contains 'Updated'
-pass 'update from current distribution'
+pass 'update from current distribution includes owned Insight protocol and routing'
 
 printf '\nUser customization\n' >> "$TEST_CONFIG/agents/atom-reviewer.md"
 cp "$TEST_CONFIG/agents/atom-reviewer.md" "$TMP/custom-reviewer"
@@ -106,6 +110,7 @@ contains 'Would remove'
 pass 'uninstall dry-run preserves every file'
 fails uninstall --ai opencode
 [ ! -e "$TEST_CONFIG/agents/atom-planner.md" ]
+[ ! -e "$TEST_CONFIG/agents/atom-developer.md" ]
 [ ! -e "$TEST_CONFIG/skills/atom-routing.md" ]
 cmp "$TMP/custom-reviewer" "$TEST_CONFIG/agents/atom-reviewer.md"
 cmp "$TMP/user-config" "$TEST_CONFIG/opencode.json"

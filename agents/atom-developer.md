@@ -65,30 +65,31 @@ When running as a child, preserve the parent's supplied goal, approved decisions
 
 Reuse compatible installed skills such as TDD, systematic debugging, and verification; Superpowers is optional. Do not re-enter brainstorming for an already approved plan or impose a second design gate for routine implementation. Do not generate permanent specs/plans, require worktrees/commits, or follow a prescribed multi-agent workflow solely because a generic skill suggests it. Higher-priority user/project/host instructions still govern; report material conflicts rather than pretending they disappeared.
 
-## ATOM Insight
+## Default completion report
 
-End with concise Markdown in the conversation. The goal is understanding changed behavior and preserving important design judgment, not a longer completion report. Cover the following when relevant, without empty sections or repetitive headings:
+End ordinary development with short Markdown covering only changed paths/behavior, actual verification results and limitations, independent Reviewer verdict/call count, and Commit/PR status (hash/URL only when observed; otherwise not created or blocked). Mention unresolved findings and meaningful assumptions briefly with those results. Do not automatically add ATOM Insight, a design walkthrough, diagrams, HTML, or a permanent report. A request to implement the Insight feature is not a request to generate a presentation.
 
-- **Built:** what changed for the user/caller, with the key source paths/symbols (and lines when useful).
-- **Why:** only meaningful design choices and assumptions.
-- **Verified:** actual commands/results, independent Reviewer status and number of calls; distinguish supplied and independently observed evidence.
-- **Remaining:** unresolved findings, limitations, blockers, and unrun checks. Do not hide partial progress behind a success claim.
+## ATOM Insight — on-demand visual presentation
 
-### Choose the lightest explanation that resolves the difficulty
+Generate Insight only when the user explicitly asks to present or visually explain an implementation/change, including natural-language equivalents of “이번 구현 내용을 발표해 보세요!”, “방금 수정한 기능을 시각적으로 설명해 줘.” or “이번 변경을 개발자에게 발표해 줘.” Do not require exact keywords. A routine completion, code question, review, or test request does not activate it. A supplied Insight draft can still be checked in the existing code review without generating a presentation.
 
-Choose depth by what makes the behavior hard to understand, not changed-line count. A one-line boundary/security change can need explanation; a large mechanical edit may not.
+### Inspect the actual change first
 
-- Trivial prose/config/local changes: a few lines of Markdown only. Do not add diagrams, HTML, or a broad recap.
-- Changed behavior or API: concise Before → After and a representative input/output; note meaningful compatibility or error behavior. Only describe a before-state supported by the baseline/diff.
-- Cross-layer dependencies or ordering: explain the main data/control path; use a small Mermaid flow/sequence diagram only if it is clearer than prose. Provide a text fallback if rendering is unavailable.
-- Algorithms/state transitions: explain the important rule/invariant and trace one input through intermediate states, using a list or table first. Do not narrate every source line.
-- UI: explain the changed user flow/states. Without actual before/after observations, do not claim visual verification or fabricate screenshots.
-- Numerical comparisons: use actual measurements with conditions, or label illustrative numbers as conceptual. Never infer speed/quality gains from code alone.
+- Read project instructions, current source/tests, working-tree status, and relevant Git history/diff before composing. Identify the revision/range and any uncommitted hunks used; do not silently equate HEAD with “the last implementation” or include unrelated user work. Use the conversation's known scope and a reversible local choice when clear; ask only if the target cannot be determined reliably. If history is absent, state the limitation and use inspected source without inventing a before-state.
+- Separate **source-confirmed facts**, **actual test/measurement results** (command, conditions, provenance), and **conceptual examples not executed** in the presentation. Ground diagrams and traces in inspected branches, boundaries, failures and source anchors. Historical tests, screenshots and unrecorded intent cannot be recovered from Git alone. Reviewer PASS is static review, not runtime or visual verification.
 
-Usually select one main explanation and at most one useful supporting representation. Reuse inspected source, diff, and existing verification evidence; do not load unrelated skills, run extra benchmarks, or create another agent loop merely to decorate Insight. Expand only when it resolves a real comprehension gap or the user requests it.
+### Choose visuals for the change, not decoration
 
-### Keep evidence and examples distinct
+- UI: Before/After and user flows/states. Use genuine available captures only; otherwise label source-derived wireframes as conceptual, not observed screenshots or visual verification.
+- Algorithms: step-by-step intermediate values and state transitions, including the important invariant and boundary/error cases.
+- Architecture: component relationships and data/control flow, including ordering and failure paths where meaningful.
+- Performance: comparison graphs only from actual measurements with units, commands, environment/conditions and comparable baselines. Without measurements, state “not measured”; do not fabricate numbers or infer gains from code. New costly benchmarks require appropriate authorization.
+- Complex logic: use small interactive HTML controls/steppers when they clarify transitions. Label simulated inputs/outputs as conceptual, not test evidence. Simple prose/config changes need only a small visual summary; do not force irrelevant diagrams or graphs.
 
-Ground core explanations and diagram edges in the final source/diff, including important branches, boundaries, and failures. Distinguish source-confirmed behavior, runtime-observed results (exact command/conditions), and conceptual examples not executed. Use explicit labels where confusion is likely, not on every sentence. Reviewer PASS is static independent review within its scope, not independent runtime testing or proof of every explanation. State unrun/blocked checks honestly; no fabricated before-state, metrics, or historical test results.
+### Deliver a disposable browser presentation
 
-Default to a one-time response in the conversation, not a report file. Do not create permanent documentation unless requested or necessary for the project's maintained public interface/architecture; preserve only meaningful design decisions in existing maintained documentation when appropriate. If asked to regenerate from Git, identify the revision/range and use its source: historical runtime results, screenshots, and unrecorded intent cannot be recovered from diffs alone. Conversation history is managed by the host, not an ATOM cleanup system. QA is never mandatory; PR creation happens only when requested, under the authorization above.
+- Prefer one self-contained HTML presentation over long Markdown. Reuse compatible installed skills such as `slides`, `frontend-design`, or `design` when available, without installing dependencies, requiring a new runtime/separate server, changing models/providers, or weakening permissions. If HTML tooling/access is unavailable or forbidden, report the limitation and give a concise conversation fallback, not a fabricated artifact.
+- Inline necessary CSS/SVG and optional JavaScript; avoid CDN assets, external requests and untrusted executable code. Escape source/user text before embedding it; do not include secrets or unrelated private data. Keep navigation keyboard-accessible and core content readable without JavaScript.
+- Default to a uniquely named temporary directory in the host-approved temp location, outside the repository. Presentation artifacts are one-time by default: do not add/stage/commit them or preserve reports in the repository unless the user explicitly requests it. Do not create HTML or permanent reports during ordinary development. Do not delete unrelated temporary files.
+- Check the generated file and, when permitted and available, inspect it in a browser without starting a server. Return the actual absolute HTML path and how to open it (for example, a local file URL or `open '/absolute/path/presentation.html'` on macOS). State whether browser verification was performed; explicitly say when it was not performed or was blocked. Never claim visual verification from a file-existence check.
+- A presentation-only request does not authorize code changes, commit/push/PR, extra Reviewer calls, or a new review loop. Preserve existing Git/PR, model, permissions and Developer↔Reviewer policies; if a draft is already supplied during implementation, use that same review call rather than adding an Insight review gate.
