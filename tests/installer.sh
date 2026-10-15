@@ -69,6 +69,12 @@ cp "$TEST_CONFIG/AGENTS.md" "$TMP/user-instructions"
 printf '\nDistribution update\n' >> "$TMP/distribution/agents/atom-planner.md"
 printf '\nInsight protocol update\n' >> "$TMP/distribution/agents/atom-developer.md"
 printf '\nInsight routing update\n' >> "$TMP/distribution/skills/atom-routing.md"
+# Model an existing v0.2 installation before upgrading this distribution.
+sed '1s/.*/ATOM1 0.2.0/' "$TEST_CONFIG/.atom-manifest" > "$TMP/previous-manifest"
+mv "$TMP/previous-manifest" "$TEST_CONFIG/.atom-manifest"
+run status
+contains 'Distribution version: 0.3.0'
+contains 'Installation version: 0.2.0'
 snapshot > "$TMP/before"
 run update --ai opencode --dry-run
 snapshot > "$TMP/after"
@@ -81,6 +87,11 @@ cmp "$TMP/distribution/agents/atom-developer.md" "$TEST_CONFIG/agents/atom-devel
 cmp "$TMP/distribution/skills/atom-routing.md" "$TEST_CONFIG/skills/atom-routing.md"
 contains 'Updated'
 pass 'update from current distribution includes owned Insight protocol and routing'
+run status
+contains 'Distribution version: 0.3.0'
+contains 'Installation version: 0.3.0'
+[ "$(head -n 1 "$TEST_CONFIG/.atom-manifest")" = 'ATOM1 0.3.0' ]
+pass 'v0.2 upgrade records v0.3 distribution and installation versions'
 
 printf '\nUser customization\n' >> "$TEST_CONFIG/agents/atom-reviewer.md"
 cp "$TEST_CONFIG/agents/atom-reviewer.md" "$TMP/custom-reviewer"
@@ -91,8 +102,8 @@ cmp "$TMP/custom-reviewer" "$TEST_CONFIG/agents/atom-reviewer.md"
 pass 'update preserves user modifications'
 run status
 contains 'Modified.*atom-reviewer'
-contains 'Distribution version: 0.2.0'
-contains 'Installation version: 0.2.0'
+contains 'Distribution version: 0.3.0'
+contains 'Installation version: 0.3.0'
 pass 'status identifies modified owned files and version'
 
 rm "$TEST_CONFIG/agents/atom-developer.md"
@@ -311,7 +322,7 @@ pass 'concurrent or stale lock is not removed'
 export TEST_CONFIG="$TMP/legacy-upgrade"
 run install
 # A v0.1 manifest owns only the five agents. Update must add the new skill.
-grep -v '^atom-routing.md ' "$TEST_CONFIG/.atom-manifest" | sed '1s/0.2.0/0.1.0/' > "$TMP/legacy-manifest"
+grep -v '^atom-routing.md ' "$TEST_CONFIG/.atom-manifest" | sed '1s/.*/ATOM1 0.1.0/' > "$TMP/legacy-manifest"
 mv "$TMP/legacy-manifest" "$TEST_CONFIG/.atom-manifest"
 rm "$TEST_CONFIG/skills/atom-routing.md"
 run update
@@ -365,6 +376,7 @@ rm "$TMP/bin/mv"
 pass 'routing skill write failure rolls back all five agent writes'
 
 fails install --ai codex
+contains 'Only --ai opencode is supported in v0.3.0'
 fails install --global
 fails update --unknown
 pass 'unsupported platforms and flags fail safely'
