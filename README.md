@@ -1,4 +1,4 @@
-# ATOM v0.3
+# ATOM v0.4
 
 **Install once. Work anywhere. Adapt to every project.**
 
@@ -38,7 +38,7 @@ atom status
 
 ### 첫 성공 확인
 
-1. 위 `./atom status`에서 `Distribution version`과 `Installation version`이 일치하고, 다섯 Agent 파일과 `atom-routing.md`가 모두 `Installed <파일명>`으로 표시되는지 확인하세요. `Missing`, `Modified`, `Conflicting`이 있으면 [업데이트·제거](#업데이트제거)의 보존·충돌 정책을 먼저 확인하세요. Status의 종료 코드가 0인 것만으로 정상 설치를 판정하지 않습니다.
+1. 위 `./atom status`에서 `Distribution version`과 `Installation version`이 일치하고, 여섯 Agent 파일과 `atom-routing.md`가 모두 `Installed <파일명>`으로 표시되는지 확인하세요. `Missing`, `Modified`, `Conflicting`이 있으면 [업데이트·제거](#업데이트제거)의 보존·충돌 정책을 먼저 확인하세요. Status의 종료 코드가 0인 것만으로 정상 설치를 판정하지 않습니다.
 2. **분석할 대상 프로젝트**로 이동해 OpenCode를 여세요. 프로젝트별 ATOM 초기화는 필요 없습니다.
 
    ```sh
@@ -72,6 +72,7 @@ Agent가 보이지 않으면 OpenCode를 다시 열거나, 설치된 버전의 `
 | 최종 검증하고 PR까지 생성해 줘 | QA 소유: blocking 없을 때 Commit·일반 Push·PR |
 | 현재 변경 사항을 독립적으로 검토해 줘 | Reviewer |
 | 최종 검증하고 PR 초안을 준비해 줘. 생성은 하지 마 | QA |
+| 다른 관점에서 전제를 의심하고 놓친 대안을 찾아 줘 | Advisor — The Skeptic (read-only 자문) |
 
 코드 설명·함수 이름 추천·작은 예제에는 위임이나 무거운 계획을 요구하지 않습니다. 사용자가 명시한 Agent 선택은 존중합니다. 기존 직접 선택도 유지됩니다: agent 목록, `Ctrl+X` 다음 `A`, `Shift+Tab`(사용자 keybind에 따라 다름).
 
@@ -84,6 +85,7 @@ Agent가 보이지 않으면 OpenCode를 다시 열거나, 설치된 버전의 `
 | `atom-developer` | 요청된 구현부터 PR까지 책임, 검증·독립 검토·수정·요청 시 Insight 발표 | `all` |
 | `atom-reviewer` | 요약을 믿지 않고 실제 staged/unstaged diff·새 파일·요구사항 검토 | `all` |
 | `atom-qa` | 검증·결과보고, 명시 PR 요청 시 publish; blocking은 보고, 수정은 별도 승인 | `all` |
+| `atom-advisor` | The Skeptic: 문제정의·전제·목표지표를 의심하는 독립 read-only 사고 파트너 | `all` |
 
 ```sh
 opencode run --agent atom-planner "이 아이디어의 가능성만 간단히 검토해 줘"
@@ -91,9 +93,26 @@ opencode run --agent atom-developer "승인된 계획을 구현하고 검토해 
 opencode run --agent atom-developer "이 수정을 구현하고 테스트·검토 후 PR까지 생성해 줘"
 opencode run --agent atom-qa "현재 변경을 최종 검증하고 blocking이 없으면 PR까지 생성해 줘. Jira는 건드리지 마"
 opencode run --agent atom-reviewer "현재 변경을 요구사항과 대조해 검토해 줘"
+opencode run --agent atom-advisor "다른 관점에서 이 문제의 전제와 더 저렴한 대안을 검토해 줘. 파일 수정은 하지 마"
 ```
 
 ## 고급 동작과 제한
+
+### Advisor — The Skeptic
+
+**Question everything, including the question itself.** / **Challenge assumptions, not momentum.**
+
+Advisor는 Reviewer가 아닙니다. 다른 분야·모듈·기존 데이터·과거 처리결과를 연결하고 정보 재활용·조합으로 중간정보를 얻을 수 있는지 탐색합니다. 실질적으로 다르거나 더 단순하고 저렴한 대안과 cheap experiment를 제안하되, 억지 대안은 만들지 않습니다. 기본 최대 3개 관점(없으면 생략)을 Question / Alternative / Evidence·Hypothesis / Cheap Test / Recommendation(지금 vs 나중)으로 제시하며, 확인 사실·가설·실행하지 않은 실험을 엄격히 구분합니다.
+
+- “다른 관점”, “놓친 것”, “전제 의심”, “엉뚱한 아이디어”, “자문위원” 의미의 명시 요청이면 Build가 호출합니다. 직접 선택·CLI 호출도 가능합니다.
+- 선택 호출은 드물고 비차단적입니다. 큰 비용 연구·재학습·핵심 architecture·광범위 refactor·신기술 도입 직전, 같은 접근의 반복실패, 가치가 있는 불확실한 신규문제에서만 고려합니다. 충분히 검증된 결정에는 반복 호출하지 않습니다. 일반 작업에서도 작은 관점전환의 효익이 큰 경우 드물게 고려할 수 있으나 무작위 scheduler·수치적 호출확률·빈도 채우기는 없습니다.
+- 단순 버그·명확한 UI·일반 정리·일반 기능/검증 계획 실행·테스트 한 번 실패·동일 자문 반복·호출비용이 효익보다 큰 경우는 건너뜁니다. 필수 단계나 재승인 절차가 아닙니다.
+- 기존 expert는 필요성을 **부모 Build에 반환**하며 Build와 기존 native routing이 조정합니다. Planner/Designer의 read-only·위임 경계를 확대하지 않습니다. 진행 중 child를 중단하지 않고 자연스러운 반환 경계에서만 자문합니다. 직접 선택한 expert에 부모가 없으면 선택적 필요성만 보고하며 강제 전환하지 않습니다.
+- 가능한 초기 맥락은 목표·프로젝트 자산·필수 제약·관련 경로부터 주고, 독립 가설 탐색 뒤 기존 결론과 비교합니다. 안전요구·권한·제외 범위는 숨기지 않습니다.
+- 자문 도착만으로 현재 업무를 자동 중단하지 않습니다. 강한 반증·명백한 안전문제·훨씬 저비용 달성가능성·사용자가 승인한 새 방향이면 기존 책임자가 방향검토하고, 약한 아이디어는 후속 후보로 둡니다. 실제 안전위반·데이터손상 위험에는 기존 정책을 적용합니다. 범위 내 채택은 작업책임자, 제품방향·승인범위 변경은 사용자 결정입니다.
+- Advisor는 소스수정·학습·실험실행·commit/push/merge/PR·배포·타 agent 구현지시·승인확대·권한우회를 하지 않습니다. Planner/Developer/Reviewer/QA 책임, Developer↔Reviewer 필수 독립검토와 공유 3회 예산은 그대로입니다. Prompt는 sandbox가 아니며 실제 host permissions가 보안 경계입니다.
+
+OpenCode V2의 `mode: all`과 edit/subagent deny 형식을 재사용하며 모델을 지정하지 않습니다. 호출 전에 실제 mode·nesting·권한을 확인합니다. Claude Code는 현재 설치 adapter 없이 역할 본문을 전달하는 정책 실험만 있으므로 이번에도 adapter나 동일 자동호출을 추가·가정하지 않습니다. 실제 native 라우팅·자문 품질은 모델 호출로 별도 검증해야 하며 정적/mock 검증만으로 성공을 주장하지 않습니다.
 
 ### 위임·검토·결과 설명
 
@@ -156,7 +175,7 @@ atom uninstall --ai opencode
 
 ## 안전 경계와 제한
 
-기존 사용자 agents, skills, `AGENTS.md`, model/provider 설정, 전역 permissions, 다른 CLI 설정은 수정하지 않습니다. ATOM이 소유한 다섯 Agent와 routing Skill만 checksum 정책에 따라 관리합니다. Agent permission에는 권한을 넓히는 `allow` 규칙이 없으며 advisory profiles의 `edit` denial 등 필요한 제한만 추가합니다.
+기존 사용자 agents, skills, `AGENTS.md`, model/provider 설정, 전역 permissions, 다른 CLI 설정은 수정하지 않습니다. ATOM이 소유한 여섯 Agent와 routing Skill만 checksum 정책에 따라 관리합니다. Agent permission에는 권한을 넓히는 `allow` 규칙이 없으며 advisory profiles의 `edit` denial 등 필요한 제한만 추가합니다. 기존 5-Agent 설치에도 `atom update --ai opencode`가 Advisor를 추가하며 수정된 기존 파일은 덮어쓰지 않습니다. 수정된 routing은 보존되므로 새 선택 정책이 자동 적용되지 않을 수 있으며 충돌을 명시적으로 해결해야 합니다.
 
 Prompt는 sandbox가 아닙니다. Shell·테스트·MCP는 외부 영향을 줄 수 있고 child agent는 자신의 권한을 사용합니다. Agent는 우회하지 않도록 지시되지만 실제 보안 경계는 host permission/policy입니다. 파괴적 작업·배포·범위 밖 변경·아직 승인되지 않은 외부 mutation은 별도 명시적 승인과 host 권한이 필요합니다. 명시적인 PR 생성 요청은 위 범위의 승인이지 host permission 우회가 아닙니다.
 
@@ -176,12 +195,16 @@ sh -n tests/ownership.sh
 sh -n tests/routing.sh
 sh -n tests/policy.sh
 sh -n tests/policy-mock.sh
+sh -n tests/advisor.sh
 sh tests/installer.sh
 sh tests/policy.sh
 sh tests/policy-mock.sh
+sh tests/advisor.sh
 ```
 
 Filesystem suite는 가짜 OpenCode path probe와 격리된 임시 config만 사용합니다. 실제 사용자 config에는 접근하지 않습니다. Clean/repeated install, update, uninstall, dry-run, 충돌·수정 보존, 누락 복구, source/checksum 오류, 경로 override, symlink, rollback, lock, 다른 agent·skill·설정 보존을 검증합니다.
+
+`advisor.sh`는 Advisor/routing의 **정적 prompt 계약**과 수작업 mock trace의 acceptance oracle을 검사합니다. A 단순버그·B 일반기능 미호출, C 반복실패·D 고비용연구 선택호출/생략, E 명시관점요청 호출, F 진행유지, G 비현실 아이디어 거절, H Reviewer 별도필수, I 직접선택의 정상/잘못된 trace를 구분합니다. J 설치·5-Agent 업그레이드·수정본 보존·제거는 `installer.sh`에서 검사합니다. Mock은 실제 모델·Build·자문 호출을 실행하지 않으므로 실제 라우팅·자문 품질·호출시간·토큰 근거가 아닙니다. `opencode.sh`에는 opt-in 직접 Advisor smoke 호출이 포함되며 이것도 자동 routing 성공을 증명하지 않습니다.
 
 `routing.sh`는 별도 임시 config에 배포본을 설치하고 일반 Build에서 Agent/Skill 이름 없는 자연어 요청을 실행합니다. Node는 격리된 vanilla JS 설정 fixture의 검증에만 필요하며 ATOM 설치 의존성이 아닙니다. A/B/D 읽기 전용, C 구현, E 검증·PR 준비(no-publish), F 단순 질문, G 같은 세션의 이전 결정 전달을 조사합니다. 실제 child/session/tool 로그와 diff를 보존합니다. 자동 guard와 별도로 **호출 메시지의 이전 결정·수정 주체·테스트 실행·독립 검토 순서·불필요한 승인 질문**을 로그에서 확인해야 합니다. 단순 child 존재나 저장 버튼 부재만으로 의미 검증 PASS를 선언하지 않습니다. 모델 오류 시 fallback 없이 중단하며 이후 모델 실험은 미실행으로 남깁니다.
 
@@ -196,7 +219,7 @@ ATOM_TEST_HOST=codex sh tests/ownership.sh
 ATOM_TEST_HOST=claude sh tests/ownership.sh
 ```
 
-통합 suite는 JSON 근거 검사용 `jq`가 필요합니다(설치기에는 필요 없음). 임시 XDG 전역 config에 설치하고 여러 프로젝트에서 다섯 agent를 실제 호출합니다. Child의 최종 assistant verdict 순서에서 `CHANGES_REQUIRED → PASS`를 확인하고 모델 상속, 사용자 파일 보존, Primary 전환 시 model 유지, 제거를 검사합니다. 상세 근거는 출력된 임시 경로의 로그로 확인할 수 있습니다. 구현 fixture는 commit 없이 staged draft를, 발표 fixture는 로컬 이력과 미커밋 변경을 사용하며 remote나 ATOM-specific 프로젝트 설정은 만들지 않습니다. 로그는 확인할 수 있도록 보존합니다.
+통합 suite는 JSON 근거 검사용 `jq`가 필요합니다(설치기에는 필요 없음). 임시 XDG 전역 config에 설치하고 여러 프로젝트에서 여섯 agent를 실제 호출합니다. Child의 최종 assistant verdict 순서에서 `CHANGES_REQUIRED → PASS`를 확인하고 모델 상속, 사용자 파일 보존, Primary 전환 시 model 유지, 제거를 검사합니다. 상세 근거는 출력된 임시 경로의 로그로 확인할 수 있습니다. 구현 fixture는 commit 없이 staged draft를, 발표 fixture는 로컬 이력과 미커밋 변경을 사용하며 remote나 ATOM-specific 프로젝트 설정은 만들지 않습니다. 로그는 확인할 수 있도록 보존합니다.
 
 `policy.sh`는 A 구현→local Commit, B 구현+PR→publish, C 검증→검사·보고만, D 검증+PR→blocking 없을 때 publish, E PR 준비→no publish, F Jira 제외의 **prompt 문자열/static guard**를 검사합니다. `policy-mock.sh`는 기존 Claude 정책 전용 호출 경로를 가짜 CLI/JSON으로 실행하고 잘못된 A–F 응답의 거절을 확인합니다. 모델 호출·Claude 실제 준수·native 위임·host 권한 집행·실제 publish 검증은 아닙니다. Claude 설치 adapter는 없습니다.
 
@@ -206,7 +229,7 @@ Insight 평가에는 일반 수정 사례의 짧은 완료 보고(자동 발표 
 
 ### 기존 검증 기록
 
-아래 실제 Agent 통합 결과는 기존 실험 기록입니다. 현재 Insight 평가가 추가된 suite의 재실행 성공을 뜻하지 않습니다.
+아래 실제 Agent 통합 결과는 기존 실험 기록입니다. 현재 Insight·Advisor 평가가 추가된 suite의 재실행 성공을 뜻하지 않습니다. Advisor 변경의 정적/mock·설치 회귀는 실제 Advisor 호출·자동 routing·시간/토큰 측정과 별개입니다.
 
 - macOS / OpenCode 2.0.19: filesystem 모의 테스트 **31개 통과**, shell syntax 검사 통과.
 - 실제 임시 XDG config: 다섯 agent 설치·호출·제거, 두 프로젝트에서 초기화 없이 사용 확인.

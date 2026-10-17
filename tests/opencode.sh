@@ -41,6 +41,7 @@ final_text() {
 cd "$TMP/project-a"
 run_agent atom-planner "$TMP/planner.jsonl" 'Disposable ATOM smoke test. No tools or file changes. Give three sentences of Explore feedback on a lightweight agent framework, not a detailed plan.'
 run_agent atom-designer "$TMP/designer.jsonl" 'Disposable ATOM smoke test. No tools or file changes. Give three actionable accessibility criteria for a login form.'
+run_agent atom-advisor "$TMP/advisor.jsonl" 'Disposable ATOM smoke test. No tools, file changes, delegation or experiments. Question the assumption that a slow search always requires retraining. No data or timing evidence is available. Give at most three useful perspectives, separating Evidence, Hypothesis and a proposed Cheap Test; recommending no alternative is valid.'
 session=$(session_id "$TMP/designer.jsonl")
 [ -n "$session" ]
 opencode api --standalone get "/api/session/$session" > "$TMP/model-before.json"
@@ -186,4 +187,4 @@ If unclear or incorrect, record a semantic failure even when guardrails pass.
 EOF
 printf 'PASS Insight length/artifact guardrails; semantic evaluation still required: %s/insight-evaluation.md\n' "$TMP"
 sh "$ROOT/atom" uninstall --ai opencode
-printf 'PASS all five agents invoked across two projects without ATOM project init; final child verdict and native model inheritance verified.\n'
+printf 'PASS all six agents invoked across two projects without ATOM project init; final child verdict and native model inheritance verified. Advisor quality/automatic routing requires separate semantic evaluation.\n'
