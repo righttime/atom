@@ -115,6 +115,7 @@ expect_child A atom-planner
 snapshot > "$TMP/readonly.after"; cmp "$TMP/readonly.before" "$TMP/readonly.after"
 run_build B '설정 화면의 사용성을 개선하고 싶어. 기존 UI를 분석하고 개선 방향을 제안해 줘.'
 expect_child B atom-designer
+jq -e 'all(.data[]; .agent != "atom-advisor")' "$TMP/B.children.json" >/dev/null
 snapshot > "$TMP/readonly.after"; cmp "$TMP/readonly.before" "$TMP/readonly.after"
 run_build F '이 함수 이름 좀 추천해 줘. function f(settings) { return JSON.stringify(settings); }'
 jq -e '.data | length == 0' "$TMP/F.children.json" >/dev/null
@@ -130,6 +131,7 @@ snapshot > "$TMP/readonly.after"; cmp "$TMP/readonly.before" "$TMP/readonly.afte
 run_build C '설정값을 저장하는 기능을 구현해 줘.'
 expect_child C atom-developer
 expect_review C
+jq -e 'all(.data[]; .agent != "atom-advisor")' "$TMP/C.children.json" >/dev/null
 node test.cjs > "$TMP/C.test.txt"
 git diff > "$TMP/C.diff"
 
@@ -149,6 +151,13 @@ snapshot > "$TMP/qa.before"
 run_build E '현재 구현의 최종 검증을 수행하고 PR을 준비해 줘. 실제 PR 생성은 하지 마. 파일 수정과 Commit/Push도 하지 마.'
 expect_child E atom-qa
 snapshot > "$TMP/qa.after"; cmp "$TMP/qa.before" "$TMP/qa.after"
+
+# Explicit skeptical intent, not an agent/skill name. Advice must not modify work
+# or replace the actual Reviewer already required above. Semantic quality needs audit.
+snapshot > "$TMP/advisor.before"
+run_build H '다른 관점에서 놓친 전제와 엉뚱하지만 현실적인 대안을 찾아 줘. 이 프로젝트의 기존 데이터나 처리결과 재활용으로 더 간단해질 여지가 없다면 없다고 해도 돼. 현재 작업은 취소하지 말고 읽기 전용으로 자문만 해 줘. 사실과 가설, 실행하지 않은 저비용 실험을 구분해 줘.'
+expect_child H atom-advisor
+snapshot > "$TMP/advisor.after"; cmp "$TMP/advisor.before" "$TMP/advisor.after"
 [ -z "$(git remote)" ]
 ! git rev-parse --verify HEAD >/dev/null 2>&1
 sh "$ROOT/atom" uninstall

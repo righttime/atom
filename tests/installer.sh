@@ -38,18 +38,19 @@ contains 'Would install'
 pass 'clean dry-run creates nothing'
 
 run install --ai opencode
-for name in planner designer developer reviewer qa; do
+cmp "$TMP/distribution/agents/atom-advisor.md" "$TEST_CONFIG/agents/atom-advisor.md"
+for name in planner designer developer reviewer qa advisor; do
   cmp "$TMP/distribution/agents/atom-$name.md" "$TEST_CONFIG/agents/atom-$name.md"
 done
 [ -f "$TEST_CONFIG/.atom-manifest" ]
-pass 'clean installation of all five agents'
+pass 'clean installation of all six agents'
 [ -f "$TEST_CONFIG/skills/atom-routing.md" ] || { echo 'Missing installed native routing skill' >&2; exit 1; }
 cmp "$TMP/distribution/skills/atom-routing.md" "$TEST_CONFIG/skills/atom-routing.md"
 grep -q '^atom-routing.md ' "$TEST_CONFIG/.atom-manifest"
-for name in planner designer developer reviewer qa; do
+for name in planner designer developer reviewer qa advisor; do
   grep -q '^mode: all$' "$TEST_CONFIG/agents/atom-$name.md"
 done
-pass 'routing skill is owned and all five agents support direct and child selection'
+pass 'routing skill is owned and all six agents support direct and child selection'
 
 snapshot > "$TMP/before"
 run install --ai opencode
@@ -73,7 +74,7 @@ printf '\nInsight routing update\n' >> "$TMP/distribution/skills/atom-routing.md
 sed '1s/.*/ATOM1 0.2.0/' "$TEST_CONFIG/.atom-manifest" > "$TMP/previous-manifest"
 mv "$TMP/previous-manifest" "$TEST_CONFIG/.atom-manifest"
 run status
-contains 'Distribution version: 0.3.0'
+contains 'Distribution version: 0.4.0'
 contains 'Installation version: 0.2.0'
 snapshot > "$TMP/before"
 run update --ai opencode --dry-run
@@ -88,10 +89,10 @@ cmp "$TMP/distribution/skills/atom-routing.md" "$TEST_CONFIG/skills/atom-routing
 contains 'Updated'
 pass 'update from current distribution includes owned Insight protocol and routing'
 run status
-contains 'Distribution version: 0.3.0'
-contains 'Installation version: 0.3.0'
-[ "$(head -n 1 "$TEST_CONFIG/.atom-manifest")" = 'ATOM1 0.3.0' ]
-pass 'v0.2 upgrade records v0.3 distribution and installation versions'
+contains 'Distribution version: 0.4.0'
+contains 'Installation version: 0.4.0'
+[ "$(head -n 1 "$TEST_CONFIG/.atom-manifest")" = 'ATOM1 0.4.0' ]
+pass 'v0.2 upgrade records v0.4 distribution and installation versions'
 
 printf '\nUser customization\n' >> "$TEST_CONFIG/agents/atom-reviewer.md"
 cp "$TEST_CONFIG/agents/atom-reviewer.md" "$TMP/custom-reviewer"
@@ -102,8 +103,8 @@ cmp "$TMP/custom-reviewer" "$TEST_CONFIG/agents/atom-reviewer.md"
 pass 'update preserves user modifications'
 run status
 contains 'Modified.*atom-reviewer'
-contains 'Distribution version: 0.3.0'
-contains 'Installation version: 0.3.0'
+contains 'Distribution version: 0.4.0'
+contains 'Installation version: 0.4.0'
 pass 'status identifies modified owned files and version'
 
 rm "$TEST_CONFIG/agents/atom-developer.md"
@@ -249,7 +250,7 @@ exec /bin/mv "$@"
 EOF
 chmod +x "$TMP/bin/mv"
 fails install --ai opencode
-for name in planner designer developer reviewer qa; do
+for name in planner designer developer reviewer qa advisor; do
   [ ! -e "$TEST_CONFIG/agents/atom-$name.md" ]
 done
 [ ! -e "$TEST_CONFIG/.atom-manifest" ]
@@ -321,13 +322,15 @@ pass 'concurrent or stale lock is not removed'
 
 export TEST_CONFIG="$TMP/legacy-upgrade"
 run install
-# A v0.1 manifest owns only the five agents. Update must add the new skill.
-grep -v '^atom-routing.md ' "$TEST_CONFIG/.atom-manifest" | sed '1s/.*/ATOM1 0.1.0/' > "$TMP/legacy-manifest"
+# A v0.1 manifest owns only the five agents. Update must add skill and Advisor.
+grep -Ev '^atom-(routing|advisor).md ' "$TEST_CONFIG/.atom-manifest" | sed '1s/.*/ATOM1 0.1.0/' > "$TMP/legacy-manifest"
 mv "$TMP/legacy-manifest" "$TEST_CONFIG/.atom-manifest"
 rm "$TEST_CONFIG/skills/atom-routing.md"
+rm "$TEST_CONFIG/agents/atom-advisor.md"
 run update
+cmp "$TMP/distribution/agents/atom-advisor.md" "$TEST_CONFIG/agents/atom-advisor.md"
 cmp "$TMP/distribution/skills/atom-routing.md" "$TEST_CONFIG/skills/atom-routing.md"
-pass 'legacy five-agent manifest upgrades with owned routing skill'
+pass 'legacy five-agent manifest upgrades with owned routing skill and Advisor'
 printf '\nDistribution routing update\n' >> "$TMP/distribution/skills/atom-routing.md"
 run update
 cmp "$TMP/distribution/skills/atom-routing.md" "$TEST_CONFIG/skills/atom-routing.md"
@@ -339,6 +342,56 @@ fails uninstall
 cmp "$TMP/custom-routing" "$TEST_CONFIG/skills/atom-routing.md"
 grep -q '^atom-routing.md ' "$TEST_CONFIG/.atom-manifest"
 pass 'modified routing skill and ownership survive update and uninstall'
+
+export TEST_CONFIG="$TMP/advisor-v03-upgrade"
+run install
+grep -v '^atom-advisor.md ' "$TEST_CONFIG/.atom-manifest" | sed '1s/.*/ATOM1 0.3.0/' > "$TMP/v03-manifest"
+mv "$TMP/v03-manifest" "$TEST_CONFIG/.atom-manifest"
+rm "$TEST_CONFIG/agents/atom-advisor.md"
+printf '\nUser developer customization\n' >> "$TEST_CONFIG/agents/atom-developer.md"
+cp "$TEST_CONFIG/agents/atom-developer.md" "$TMP/custom-developer"
+fails update --ai opencode
+cmp "$TMP/custom-developer" "$TEST_CONFIG/agents/atom-developer.md"
+cmp "$TMP/distribution/agents/atom-advisor.md" "$TEST_CONFIG/agents/atom-advisor.md"
+grep -q '^atom-advisor.md ' "$TEST_CONFIG/.atom-manifest"
+run status
+contains 'Installed atom-advisor.md'
+pass 'v0.3 five-agent update adds owned Advisor while preserving edited Developer'
+printf '\nUser Advisor customization\n' >> "$TEST_CONFIG/agents/atom-advisor.md"
+cp "$TEST_CONFIG/agents/atom-advisor.md" "$TMP/custom-advisor"
+fails update
+run status
+contains 'Modified atom-advisor.md'
+fails uninstall
+cmp "$TMP/custom-advisor" "$TEST_CONFIG/agents/atom-advisor.md"
+grep -q '^atom-advisor.md ' "$TEST_CONFIG/.atom-manifest"
+pass 'modified Advisor and its ownership survive update, status and uninstall'
+
+export TEST_CONFIG="$TMP/advisor-conflict"
+mkdir -p "$TEST_CONFIG/agents"
+printf 'User Advisor\n' > "$TEST_CONFIG/agents/atom-advisor.md"
+snapshot > "$TMP/before"
+fails install
+snapshot > "$TMP/after"
+cmp "$TMP/before" "$TMP/after"
+# Update adds safe files but reports unowned Advisor as a conflict.
+fails update
+[ "$(cat "$TEST_CONFIG/agents/atom-advisor.md")" = 'User Advisor' ]
+if grep -q '^atom-advisor.md ' "$TEST_CONFIG/.atom-manifest"; then exit 1; fi
+run uninstall
+[ "$(cat "$TEST_CONFIG/agents/atom-advisor.md")" = 'User Advisor' ]
+pass 'unowned Advisor is never adopted or overwritten'
+
+export TEST_CONFIG="$TMP/advisor-symlink"
+run install
+cp "$TEST_CONFIG/agents/atom-advisor.md" "$TMP/outside/advisor.md"
+rm "$TEST_CONFIG/agents/atom-advisor.md"
+ln -s "$TMP/outside/advisor.md" "$TEST_CONFIG/agents/atom-advisor.md"
+fails update
+fails uninstall
+[ -L "$TEST_CONFIG/agents/atom-advisor.md" ]
+cmp "$TMP/distribution/agents/atom-advisor.md" "$TMP/outside/advisor.md"
+pass 'owned Advisor symlink is preserved without touching its referent'
 
 export TEST_CONFIG="$TMP/skill-conflict"
 mkdir -p "$TEST_CONFIG/skills"
@@ -367,16 +420,16 @@ exec /bin/mv "$@"
 EOF
 chmod +x "$TMP/bin/mv"
 fails install
-for name in planner designer developer reviewer qa; do
+for name in planner designer developer reviewer qa advisor; do
   [ ! -e "$TEST_CONFIG/agents/atom-$name.md" ]
 done
 [ ! -e "$TEST_CONFIG/skills/atom-routing.md" ]
 [ ! -e "$TEST_CONFIG/.atom-manifest" ]
 rm "$TMP/bin/mv"
-pass 'routing skill write failure rolls back all five agent writes'
+pass 'routing skill write failure rolls back all six agent writes'
 
 fails install --ai codex
-contains 'Only --ai opencode is supported in v0.3.0'
+contains 'Only --ai opencode is supported in v0.4.0'
 fails install --global
 fails update --unknown
 pass 'unsupported platforms and flags fail safely'

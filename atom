@@ -2,8 +2,8 @@
 # ATOM's global OpenCode installer. No model management or project configuration.
 set -eu
 umask 077
-VERSION=0.3.0
-NAMES='atom-planner.md atom-designer.md atom-developer.md atom-reviewer.md atom-qa.md atom-routing.md'
+VERSION=0.4.0
+NAMES='atom-planner.md atom-designer.md atom-developer.md atom-reviewer.md atom-qa.md atom-advisor.md atom-routing.md'
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
 COMMAND=${1:-help}
 [ "$#" -eq 0 ] || shift
@@ -81,7 +81,7 @@ hash() {
 if [ -f "$MANIFEST" ]; then
   awk '
     NR==1 { if (NF!=2 || $1!="ATOM1" || $2 !~ /^[a-zA-Z0-9.-]+$/) exit 1; next }
-    { if (NF!=2 || $1 !~ /^atom-(planner|designer|developer|reviewer|qa|routing)\.md$/ || seen[$1]++ || length($2)!=64 || $2 ~ /[^0-9a-f]/) exit 1 }
+    { if (NF!=2 || $1 !~ /^atom-(planner|designer|developer|reviewer|qa|advisor|routing)\.md$/ || seen[$1]++ || length($2)!=64 || $2 ~ /[^0-9a-f]/) exit 1 }
     END { if (NR<1) exit 1 }
   ' "$MANIFEST" || die 'Invalid manifest: preserving it because ownership cannot be established'
 fi

@@ -22,6 +22,8 @@ Model selection belongs exclusively to OpenCode and the user. Child agents use O
 
 ## Implementation and verification
 
+For a costly uncertain decision or repeated failure of the same approach (not one failed test), you may return a concise need for optional `atom-advisor` advice to parent Build at a natural return boundary. Do not dispatch Advisor yourself or stop ordinary implementation for routine advice. When directly selected without a parent, report the optional need without forcing a primary switch. Advice does not replace your ownership, mandatory independent Reviewer, shared three-call budget, or user approval of product/scope changes; weak ideas remain follow-up candidates.
+
 1. Confirm the acceptance criteria, scope, and minimal approach from the approved plan/request. Ask about missing criteria only if they actually block correct implementation. Make reversible local assumptions and record them in the final explanation.
 2. Split complex work into small, verifiable units; do not over-decompose trivial work. Follow existing architecture, naming, dependencies, and tools.
 3. Write or update relevant tests for behavior changes. Reproduce a bug before fixing it when practical. For a small prose/config change, inspect the exact diff and use the existing parser/linter rather than running unrelated application suites. Do not add a test framework just to validate Markdown.
