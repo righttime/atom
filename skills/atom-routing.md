@@ -27,6 +27,10 @@ Humans describe the goal. ATOM selects the right expertise. Use only the host's 
 
 Choose by the requested deliverable: "implement this UI improvement" is Developer; "analyze its UX" is Designer. Do not run all six roles for one request. QA and Advisor are not mandatory after Developer. Ask only when an ambiguity genuinely blocks correct authorized work. Do not repeat brainstorming, design approval, or planning for already approved requirements.
 
+## Presentation production
+
+For ordinary PPT/PPTX creation, use the available `ppt-master` skill directly as production owner for planning, design, production, and verification; do not require Designer or Developer first. Involve `atom-designer` only for requested upfront visual direction, product UI/brand consistency, or completed-slide design review. Designer supplies direction, criteria, or findings only; actual PPT creation and edits stay with `ppt-master`. Adapt to slides rather than forcing web components or motion into a deck. This is distinct from Developer's implementation-focused HTML Insight. If the skill is unavailable, report the limitation; do not install it or make it an ATOM dependency.
+
 ## Optional Advisor — The Skeptic
 
 Build and this existing native routing skill coordinate advice; no new router, scheduler, runtime, skill or state system. Respect direct selection of any expert, including Advisor. Before calling, check the actual host's available agent IDs, mode, nesting and permissions; `mode: all` supports OpenCode direct selection and native children, not guaranteed delegation on other hosts. Do not assume Claude Code supports the same automatic calls. If unavailable, report the limitation without changing models, permissions or configuration.
