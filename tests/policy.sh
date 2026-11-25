@@ -39,6 +39,18 @@ has agents/atom-developer.md 'actual absolute HTML path'
 has agents/atom-developer.md 'explicitly say when it was not performed or was blocked'
 has agents/atom-developer.md 'presentation-only request does not authorize'
 printf 'PASS static on-demand Insight trigger, evidence, temporary artifact and delivery contract (not runtime behavior)\n'
+for file in agents/atom-developer.md agents/atom-qa.md skills/atom-routing.md; do
+  has "$file" 'three automatic'
+  has "$file" 'explicit user approval'
+  has "$file" 'positive integer'
+  has "$file" '3/3` → `3/5` → `4/5'
+  has "$file" 'denied or pending'
+done
+has agents/atom-developer.md 'A `PASS` on the last authorized call needs no extension'
+has agents/atom-qa.md 'Reuse a current independent `PASS` that covers the final changes'
+has agents/atom-reviewer.md 'A final allowed call uses the same verdict standard'
+has skills/atom-routing.md 'Resume the same Developer'
+printf 'PASS static shared review budget and approval contract (not runtime behavior)\n'
 for file in "$ROOT"/agents/*.md; do
   if sed -n '1,/^$/p' "$file" | grep -Eq '^(model:|[[:space:]]*allow:)'; then
     echo 'FAIL unexpected model/permission expansion' >&2; exit 1

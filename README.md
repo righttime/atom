@@ -110,7 +110,7 @@ Advisor는 Reviewer가 아닙니다. 다른 분야·모듈·기존 데이터·�
 - 기존 expert는 필요성을 **부모 Build에 반환**하며 Build와 기존 native routing이 조정합니다. Planner/Designer의 read-only·위임 경계를 확대하지 않습니다. 진행 중 child를 중단하지 않고 자연스러운 반환 경계에서만 자문합니다. 직접 선택한 expert에 부모가 없으면 선택적 필요성만 보고하며 강제 전환하지 않습니다.
 - 가능한 초기 맥락은 목표·프로젝트 자산·필수 제약·관련 경로부터 주고, 독립 가설 탐색 뒤 기존 결론과 비교합니다. 안전요구·권한·제외 범위는 숨기지 않습니다.
 - 자문 도착만으로 현재 업무를 자동 중단하지 않습니다. 강한 반증·명백한 안전문제·훨씬 저비용 달성가능성·사용자가 승인한 새 방향이면 기존 책임자가 방향검토하고, 약한 아이디어는 후속 후보로 둡니다. 실제 안전위반·데이터손상 위험에는 기존 정책을 적용합니다. 범위 내 채택은 작업책임자, 제품방향·승인범위 변경은 사용자 결정입니다.
-- Advisor는 소스수정·학습·실험실행·commit/push/merge/PR·배포·타 agent 구현지시·승인확대·권한우회를 하지 않습니다. Planner/Developer/Reviewer/QA 책임, Developer↔Reviewer 필수 독립검토와 공유 3회 예산은 그대로입니다. Prompt는 sandbox가 아니며 실제 host permissions가 보안 경계입니다.
+- Advisor는 소스수정·학습·실험실행·commit/push/merge/PR·배포·타 agent 구현지시·승인확대·권한우회를 하지 않습니다. Planner/Developer/Reviewer/QA 책임과 필수 독립 검토는 유지하며, Advisor 자문은 검토 예산을 늘리지 않습니다. Prompt는 sandbox가 아니며 실제 host permissions가 보안 경계입니다.
 
 OpenCode V2의 `mode: all`과 edit/subagent deny 형식을 재사용하며 모델을 지정하지 않습니다. 호출 전에 실제 mode·nesting·권한을 확인합니다. Claude Code는 현재 설치 adapter 없이 역할 본문을 전달하는 정책 실험만 있으므로 이번에도 adapter나 동일 자동호출을 추가·가정하지 않습니다. 실제 native 라우팅·자문 품질은 모델 호출로 별도 검증해야 하며 정적/mock 검증만으로 성공을 주장하지 않습니다.
 
@@ -118,11 +118,13 @@ OpenCode V2의 `mode: all`과 edit/subagent deny 형식을 재사용하며 모�
 
 고정 workflow는 없습니다. 프로젝트의 stack·구조·컨벤션·`AGENTS.md`·skills·테스트·권한은 OpenCode의 native context를 사용합니다. Superpowers는 선택 사항이며 기존 skills를 설치·복제·덮어쓰지 않습니다. 이미 승인된 작업에 불필요한 재승인·commit·문서 생성 절차를 추가하지 않습니다.
 
-Developer는 foreground Reviewer 결과를 받은 뒤 blocking finding을 수정하고 필요한 검증·재검토를 수행합니다. **같은 작업 묶음당 최초 검토를 포함해 최대 3회 호출**하며 실패·불완전한 호출도 횟수에 포함합니다. 한도에 도달하면 미해결 문제를 보고하고 성공을 주장하지 않습니다.
+Developer는 foreground Reviewer 결과를 받은 뒤 blocking finding을 수정하고 필요한 검증·재검토를 수행합니다. **같은 작업 묶음의 기본 자동 호출 예산은 최초 검토를 포함해 3회**이며 실패·불완전한 호출도 포함합니다. 마지막 호출의 실제 독립 `PASS`가 최종 변경을 커버하고 필수 검사를 통과하면 추가 승인은 필요 없습니다.
+
+승인된 예산이 소진된 뒤에도 검토가 더 필요하면 루프를 멈추고 **판정·사용/승인 횟수, 미해결 문제 또는 부족한 근거, 실패·미실행 검사, 다음 접근, 추가로 필요한 호출 수(기본 추천 2회)**를 같은 대화에서 알리고 승인까지 대기합니다. Child는 Build 또는 QA 책임자에게 이 근거를 반환하며, 책임자는 사용자의 결정 후 같은 Developer를 재개합니다. 제안한 횟수를 명시적으로 승인하거나 사용자가 유한한 양의 정수 `N`을 지정해 승인할 때만 같은 묶음의 총예산에 `+N`을 더합니다(예: `3/3` → `3/5` → `4/5`). 다시 소진되면 필요할 때만 재승인을 요청합니다. 무제한 승인·횟수 초기화·외부 티켓은 없으며, 횟수 승인은 수정·배포 승인이나 host 권한이 아닙니다.
 
 Build는 사용자 목표·승인 요구사항·acceptance criteria·이전 결정·제외 범위·사용자 변경·검증 및 미해결 문제를 child 호출 메시지로 전달하고, 결과를 같은 대화에 반영합니다. Child가 전체 부모 대화를 자동 상속한다고 가정하지 않습니다. 영구 Context 파일은 만들지 않습니다.
 
-Developer child가 **구조적 depth limit** 때문에 Reviewer를 중첩 호출할 수 없으면 실제 수정·검증 근거와 남은 검토 예산을 부모에 반환합니다. 부모 Build가 sibling Reviewer를 호출하고, 필요한 수정은 기존 Developer child를 재개해 처리합니다. 실패한 중첩 시도도 3회에 포함합니다. 이는 권한 거부의 대체 경로가 아닙니다. denied/pending 권한이면 부모·다른 도구로 재시도하지 않고 차단을 보고합니다.
+Developer child가 **구조적 depth limit** 때문에 Reviewer를 중첩 호출할 수 없으면 실제 수정·검증 근거와 사용/승인 횟수를 부모에 반환합니다. 부모 Build 또는 QA 책임자가 남은 승인 범위에서 sibling Reviewer를 호출하고, 승인된 수정은 기존 Developer child를 재개해 처리합니다. 실패한 중첩 시도도 누적 횟수에 포함합니다. 이는 권한 거부의 대체 경로가 아닙니다. denied/pending 권한이면 부모·다른 도구로 재시도하지 않고 차단을 보고합니다.
 
 일반 Developer 완료 보고는 **변경사항·실제 검증 결과와 한계·Reviewer 판정/횟수·Commit/PR 상태**만 짧게 전달합니다. Insight 설명·HTML·영구 보고서를 자동 생성하지 않습니다.
 
@@ -144,7 +146,7 @@ Insight는 기존 Developer와 `atom-routing`에 포함되어 설치·업데이�
 - **QA에게 검증만 요청:** 검사와 결과보고만 수행하며 Commit/Push/PR·직접 구현 수정·암묵적 helper 수정루프는 승인하지 않습니다.
 - **QA에게 검증부터 PR까지 요청:** QA가 검증·독립 검토 근거 확인 후 blocking이 없으면 scoped Commit·일반 Push·PR을 재승인 없이 책임집니다. Blocking 발견 시 publish를 강행하지 않고 문제와 필요한 후속작업을 보고합니다.
 - QA의 수정 예외는 별도 명시적 수정 승인이나 명시된 역할 정책이 있을 때뿐입니다. 승인된 구현 수정은 Developer에게 재현·범위·baseline·사용자 변경·검증 결과·남은 검토 횟수·전달 한계와 함께 foreground 위임합니다. QA 직접 편집도 해당 bounded 수정의 명시 승인·프로젝트 역할 규칙·host 권한이 필요합니다. 도움을 받아도 최초 책임자는 유지하며 일상적인 primary 전환을 요구하지 않습니다.
-- QA/Developer 간 전달에도 **동일 묶음 전체 최대 3회** Reviewer 예산을 공유합니다. 최종 변경을 커버하는 실제 독립 `PASS`와 필요한 검사 통과 없이 publish하지 않습니다. Reviewer는 소유권을 넘겨받거나 runtime 검증을 대신하지 않습니다.
+- QA/Developer 간 전달에도 동일 묶음의 **사용/승인 누적 횟수**를 공유합니다. 최종 변경을 커버하는 실제 독립 `PASS`와 필요한 검사 통과 없이 publish하지 않습니다. Reviewer는 소유권을 넘겨받거나 runtime 검증을 대신하지 않습니다.
 - 명시적인 **PR 생성 요청은 해당 범위의 Commit·비기본 작업 브랜치 일반 Push·PR 생성을 승인**합니다. Goal 승인에 포함된 통상 하위작업의 단계별·브랜치명별 재승인을 요구하지 않습니다. 단순 테스트·PR 준비·PR 초안·PR 요약·PR review에는 publish 승인이 없습니다. Repository/base가 설정·관례로 명확하면 다시 묻지 않으며 적절한 작업 브랜치는 유지합니다. `local-only`, `no-commit`, `no-push` 등 명시적 제한과 host permission은 우선합니다.
 - Commit/Push 전 main/master·실제 remote-default가 아닌 작업 브랜치인지와 포함할 변경을 확인하고, 필요하면 기존 작업을 보존하며 작업 브랜치를 만듭니다. 외부 변경 전 repository·remote·push ref·PR base를 확인합니다. 기본 브랜치 직접 Push(`HEAD:main` 포함), Force Push, 이력 재작성·파괴적 명령·무관한 변경은 PR 요청만으로 승인되지 않습니다. **Merge는 사용자의 별도 명시적 결정**이 필요하며 auto-merge도 켜지 않습니다.
 - Jira 연동이 명시적으로 요청되지 않은 작업은 Jira를 변경하지 않습니다. GitHub helper 등은 기존 host/프로젝트 지침에 따라 사용하되 책임과 권한을 넘기거나 넓히지 않습니다. 실제 성공 응답의 URL만 생성된 PR로 보고합니다.
@@ -183,7 +185,7 @@ Reviewer는 실제 diff·소스·테스트 코드를 읽기 중심 shell 명령�
 
 설치기는 symlink config/상위 경로/agent 디렉터리를 거부하고 symlink 파일을 보존합니다. `.atom-lock`으로 동시 ATOM mutation을 막고, 일반 오류·종료 signal에는 변경 파일을 rollback합니다. 이 잠금은 다른 편집기나 악의적인 동시 filesystem 변경을 막지 않습니다. `SIGKILL`·전원 손실에는 rollback을 보장하지 않으며 stale lock/잔여 staging 파일을 남길 수 있습니다. 해당 작업이 종료됐는지 확인하고 백업과 ownership을 점검한 뒤 복구하세요. Ownership을 잃은 파일은 자동 삭제·인수하지 않습니다.
 
-3회 검토 제한은 prompt 계약이고 `steps`는 추가 model-step 상한입니다. 특정 모델의 준수, 버그 없는 결과, 30–60분 무중단 실행을 보장하지 않습니다. 권한 차단·모델 오류·미해결 finding은 정직하게 보고합니다.
+기본 3회 검토 예산과 명시 승인에 따른 연장은 prompt 계약이고 `steps`는 별도의 model-step 상한입니다. 특정 모델의 준수, 버그 없는 결과, 30–60분 무중단 실행을 보장하지 않습니다. 권한 차단·모델 오류·미해결 finding은 정직하게 보고합니다.
 
 ## 검증
 
@@ -221,7 +223,7 @@ ATOM_TEST_HOST=claude sh tests/ownership.sh
 
 통합 suite는 JSON 근거 검사용 `jq`가 필요합니다(설치기에는 필요 없음). 임시 XDG 전역 config에 설치하고 여러 프로젝트에서 여섯 agent를 실제 호출합니다. Child의 최종 assistant verdict 순서에서 `CHANGES_REQUIRED → PASS`를 확인하고 모델 상속, 사용자 파일 보존, Primary 전환 시 model 유지, 제거를 검사합니다. 상세 근거는 출력된 임시 경로의 로그로 확인할 수 있습니다. 구현 fixture는 commit 없이 staged draft를, 발표 fixture는 로컬 이력과 미커밋 변경을 사용하며 remote나 ATOM-specific 프로젝트 설정은 만들지 않습니다. 로그는 확인할 수 있도록 보존합니다.
 
-`policy.sh`는 A 구현→local Commit, B 구현+PR→publish, C 검증→검사·보고만, D 검증+PR→blocking 없을 때 publish, E PR 준비→no publish, F Jira 제외의 **prompt 문자열/static guard**를 검사합니다. `policy-mock.sh`는 기존 Claude 정책 전용 호출 경로를 가짜 CLI/JSON으로 실행하고 잘못된 A–F 응답의 거절을 확인합니다. 모델 호출·Claude 실제 준수·native 위임·host 권한 집행·실제 publish 검증은 아닙니다. Claude 설치 adapter는 없습니다.
+`policy.sh`는 A 구현→local Commit, B 구현+PR→publish, C 검증→검사·보고만, D 검증+PR→blocking 없을 때 publish, E PR 준비→no publish, F Jira 제외 및 공유 검토 예산/추가 승인에 대한 **prompt 문자열/static guard**를 검사합니다. `policy-mock.sh`는 기존 Claude 정책 전용 호출 경로를 가짜 CLI/JSON으로 실행하고 잘못된 A–F 응답의 거절을 확인합니다. 모델 호출·Claude 실제 준수·native 위임·host 권한 집행·실제 publish 검증은 아닙니다. Claude 설치 adapter는 없습니다.
 
 `ownership.sh`는 Developer/QA의 승인·소유권 정책 응답을 검사하고, OpenCode에서는 별도 로컬 Git fixture의 계산 결과·사용자 메모 보존·범위 내 Commit·Developer child 존재·Reviewer 최종 verdict를 자동 확인합니다. QA fixture는 **수정·Developer 위임을 별도로 명시 승인한 예외**이며 검증만으로 수정이 승인된다는 뜻이 아닙니다. **수정 주체·agent의 실제 검사 실행·최종 변경의 검토 순서는 자동 판정하지 않습니다.** 생성된 `ownership-evaluation.md`에 따라 parent/child tool 기록과 최종 diff를 대조하기 전에는 native 역할 전달 성공을 주장하지 않습니다. remote를 설정하지 않고 실제 Push/PR/Merge/Jira 변경은 하지 않습니다. 정책 JSON 응답은 자체 진술이지 원격 동작의 실행 근거가 아닙니다. Codex/Claude 선택은 역할 본문을 명시적으로 전달하는 **정책 전용 실험**이며 native 설치·위임·Commit 검증은 생략합니다. 모델 오류/host 차단은 실패로 남기고 자동 fallback이나 `--auto`는 사용하지 않습니다. Prompt 계약이 모든 모델에서 보장된다는 뜻은 아닙니다. 아래 과거 검증 기록은 당시 정책 결과이며 이 변경의 modeled 행동 재검증이 아닙니다.
 
@@ -246,6 +248,6 @@ Insight 평가에는 일반 수정 사례의 짧은 완료 보고(자동 발표 
 - Codex 0.160.1 역할 본문 정책 실험: 기존 QA는 독립 검토 필요·승인된 작은 직접 수정 항목에서 기대와 다르게 응답해 실패했고, 변경 후 Developer/QA는 각 13개 정책 판단을 통과했습니다. 이는 실제 CLI 출력에 대한 정책 회귀 근거이며 native 위임이나 원격 publish의 실행 증거는 아닙니다.
 - Claude Code 2.1.259도 변경 후 Developer/QA 각 13개 정책 판단을 통과했습니다. OpenCode와 마찬가지로 모델·provider·권한을 바꾸지 않았으며 Codex/Claude 실험은 독립적인 플랫폼 정책 실험이지 차단된 OpenCode 작업의 우회가 아닙니다.
 
-미검증: 다른 OS/OpenCode 버전·model/provider, 실제 원격 commit/push/PR/배포, 3회 한도 소진·context compaction·30–60분 장기 작업, 모든 외부 skill workflow와의 행동 호환성. Superpowers/기존 skills 설치 파일은 변경하지 않으며 개별 지침 충돌은 host/user 정책에 따릅니다.
+미검증: 다른 OS/OpenCode 버전·model/provider, 실제 원격 commit/push/PR/배포, 검토 예산 소진 시 대기·사용자 승인 후 재개·context compaction·30–60분 장기 작업, 모든 외부 skill workflow와의 행동 호환성. Superpowers/기존 skills 설치 파일은 변경하지 않으며 개별 지침 충돌은 host/user 정책에 따릅니다.
 
 공식 V2 참고: [Agents](https://opencode.ai/v2/docs/agents), [Permissions](https://opencode.ai/v2/docs/permissions), [Skills](https://opencode.ai/v2/docs/skills), [Keybinds](https://opencode.ai/v2/docs/cli/keybinds).
